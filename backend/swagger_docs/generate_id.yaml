@@ -1,0 +1,30 @@
+Endpoint to generate an ID.
+---
+tags: ["Id Generation"]
+parameters:
+  - in: header
+    name: x-client-id
+    description: Current client ID
+    required: true
+    type: string
+  - in: header
+    name: x-token
+    description: Token for verification
+    required: true
+    type: string
+  - in: body
+    name: data
+    description: Data for generating an ID
+    required: true
+    schema:
+      type: object
+      properties:
+        ID_NAME:
+          type: string
+responses:
+  "200":
+    description: ID generation successful
+  "401":
+    description: Token not verified or data cannot be inserted
+  "500":
+    description: Error occurred during ID generation

@@ -1,0 +1,30 @@
+Endpoint to register a client.
+---
+tags: ["Register Client as Admin"]
+parameters:
+  - in: header
+    name: x-token
+    description: Token for verification
+    required: true
+    type: string
+  - name: body
+    in: body
+    description: Client details
+    required: true
+    schema:
+      type: object
+      properties:
+        CLIENT_ID:
+          type: string
+          description: The ID of the client.
+        CLIENT_NAME:
+          type: string
+          description: The name of the client.
+        PASSWORD:
+          type: string
+          description: The password of the client.
+responses:
+  "200":
+    description: Client registered successfully.
+  "500":
+    description: Error occurred during registration.
