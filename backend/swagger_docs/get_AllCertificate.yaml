@@ -1,0 +1,46 @@
+Endpoint to retrieve all certificate details
+---
+tags: ["Get All Certificates"]
+parameters:
+  - name: x-client-id
+    in: header
+    description: Client ID
+    required: true
+    type: string
+  - name: x-token
+    in: header
+    description: Authentication token
+    required: true
+    type: string
+responses:
+  "200":
+    description: Successful operation
+    schema:
+      type: object
+      properties:
+        base64_data_list:
+          type: array
+          items:
+            type: string
+          example:
+            - base64_encoded_data_1
+            - base64_encoded_data_2
+  "401":
+    description: Unauthorized - Token not verified
+    schema:
+      type: object
+      properties:
+        description:
+          type: string
+          example: Token not verified
+  "500":
+    description: Internal server error
+    schema:
+      type: object
+      properties:
+        description:
+          type: string
+          example: Failed to retrieve files
+        error:
+          type: string
+          example: Internal server error occurred

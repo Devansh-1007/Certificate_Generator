@@ -1,0 +1,2 @@
+make a proper folder structure followig the middleware and protected and unprotected routes concept
+list previously generated items by the client

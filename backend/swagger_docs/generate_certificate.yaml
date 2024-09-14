@@ -1,0 +1,30 @@
+Endpoint to log in a client.
+---
+tags: ["Certificate Generation"]
+parameters:
+  - in: header
+    name: x-client-id
+    description: Current client ID
+    required: true
+    type: string
+  - in: header
+    name: x-token
+    description: Token for verification
+    required: true
+    type: string
+  - in: body
+    name: data
+    description: Data for registering a certificate
+    required: true
+    schema:
+      type: object
+      properties:
+        CERTIFICATE_NAME:
+          type: string
+responses:
+  "200":
+    description: Certificate registration successful
+  "401":
+    description: Token not verified or data cannot be inserted
+  "500":
+    description: Error occurred during certificate registration

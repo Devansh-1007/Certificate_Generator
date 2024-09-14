@@ -1,0 +1,40 @@
+Endpoint to retrieve a certificate.
+---
+tags: ["Download Certificate"]
+parameters:
+  - in: header
+    name: x-client-id
+    description: Current client ID
+    required: true
+    type: string
+  - in: header
+    name: x-token
+    description: Token for verification
+    required: true
+    type: string
+  - in: query
+    name: CERTIFICATE_NAME
+    description: Name of the certificate
+    required: true
+    type: string
+  - in: query
+    name: EXTENSION
+    description: Extension of the certificate
+    required: true
+    type: string
+responses:
+  200:
+    description: Certificate retrieval successful
+    content:
+      application/file:
+        schema:
+          type: file
+          format: binary
+      image/gif:
+        schema:
+          type: file
+          format: binary
+  401:
+    description: Token not verified or failed to retrieve the file
+  500:
+    description: Error occurred while retrieving the file

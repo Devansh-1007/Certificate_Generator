@@ -1,0 +1,22 @@
+Endpoint to log in a client.
+---
+tags: ["Login as Client"]
+parameters:
+  - in: body
+    name: credentials
+    description: User login credentials
+    required: true
+    schema:
+      type: object
+      properties:
+        CLIENT_ID:
+          type: string
+        CLIENT_NAME:
+          type: string
+        PASSWORD:
+          type: string
+responses:
+  "200":
+    description: Login successful
+  "500":
+    description: Error occurred during login
