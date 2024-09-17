@@ -1,13 +1,12 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv("Certificate_Generator/backend/Env/.env")
+load_dotenv("Env/.env")
 # Secret key for jwt
 admin_secret_key = os.getenv("ADMIN_SECRET_KEY", "").encode("utf-8")
 admin_iv = os.getenv("ADMIN_IV", "").encode("utf-8")
 admin_content = os.getenv("ADMIN_CONTENT", "")
 admin_token = os.getenv("ADMIN_TOKEN")
-
 
 admin = os.getenv("ADMIN")
 # Load environment variables from .env file

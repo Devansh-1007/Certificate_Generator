@@ -36,7 +36,6 @@ app.config["SWAGGER"] = {
 swagger = Swagger(app)
 CORS(app)
 
-# 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
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -122,11 +121,8 @@ def login():
 def generatecert():
     try:
         data = request.get_json()
-        print(data)
         CERTIFICATE_NAME = data["CERTIFICATE_NAME"]
-        print(CERTIFICATE_NAME)
         CURRENT_CLIENT = request.headers.get("x-client-id")
-        print(CURRENT_CLIENT)
         TOKEN = request.headers.get("x-token")
         logging.info(CURRENT_CLIENT)
         DECRYPTED_TOKEN = verifyToken(CURRENT_CLIENT, TOKEN)
@@ -137,7 +133,7 @@ def generatecert():
             checkCert = verify_Certificate(
                 CERTIFICATE_NAME, CURRENT_CLIENT, "CERTIFICATE_DETAILS"
             )
-            logging.info("verify certificate ka result ", checkCert)
+            logging.info(checkCert)
             if checkCert:
                 details = {
                     "status": "Success",

@@ -1,6 +1,6 @@
 from PIL import Image
 from io import BytesIO
-from barcode import Gs1_128
+from barcode.codex import Gs1_128
 from barcode.writer import ImageWriter
 import qrcode
 import logging
