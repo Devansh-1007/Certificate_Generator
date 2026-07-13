@@ -1,152 +1,62 @@
-# Certificate Generator 🎓✨
+# CertifyAI — Certificate Generator
 
-## Overview
+Full-stack platform that generates branded certificates and ID cards at scale — with an
+**AI agent that designs certificate templates from plain-English descriptions**.
 
-**Certificate Generator** is a convenient, user-friendly tool that allows users to create customized certificates based on pre-defined templates. Designed with both backend and frontend components, this tool ensures that anyone can generate certificates in a few clicks. It automates the process by allowing the customization of fields like name, date, and event, saving time for both individuals and organizations.
+## Highlights
 
----
+- **AI Template Designer** — a hand-rolled tool-calling agent (Anthropic / OpenAI / Ollama)
+  emits template JSON constrained to a schema; every draft is schema-validated,
+  layout-checked, and test-rendered, with errors fed back for self-correction.
+- **Schema-driven rendering** — templates are data (text / border / line / image / QR
+  elements with `{PLACEHOLDER}` substitution), rendered server-side with PIL to PNG + PDF.
+- **JWT auth** with client/admin roles; admin-gated client registration.
+- **S3-compatible storage** — Cloudflare R2 / Backblaze B2 / MinIO / AWS via one env var.
+- **Versioned SQL migrations**, blueprint architecture, middleware-based route protection.
 
-## Features 🚀
+## Architecture
 
-- **Customizable Templates**: Multiple certificate designs to choose from.
+```
+frontend/  React 18 + Tailwind (CRA)          backend/   Flask
+  src/api        axios client + JWT             main.py            entrypoint
+  src/context    auth state                     middleware.py      @require_client/@require_admin
+  src/pages      Login/Dashboard/Designer...    routes/            blueprints
+                                                templateEngine/    schema + PIL renderer
+                                                aiDesigner/        LLM client + agent loop
+                                                db/migrations/     V1, V2...
+```
 
-- **Dynamic Fields**: Customize recipient name, issue date, event name, and more.
-
-- **PDF Export**: Export certificates in high-quality PDF format.
-
-- **Backend**: Python-based backend with API support.
-
-- **Frontend**: Built using modern JavaScript frameworks for an intuitive user experience.
-
-- **Error Handling**: Proper error messages and validations.
-
----
-
-## Tech Stack 💻
-
-- **Backend**: Python (Flask), REST API
-
-- **Frontend**: JavaScript (React.js)
-
-- **Database**: SQLite or any relational DB (optional)
-
-- **PDF Generation**: ReportLab (Python library)
-
----
-
-## Getting Started 🛠️
-
-### Prerequisites
-
-Ensure you have the following installed:
-
-- Python 3.x
-
-- Node.js & npm
-
-- Git
-
-### Installation Steps
-
-1. Clone the repository:
+## Quickstart
 
 ```bash
+# 1. Database (MySQL 8 — local install or Docker)
+docker run -d --name certdb -e MYSQL_ROOT_PASSWORD=devpass -e MYSQL_DATABASE=certificate -p 3306:3306 mysql:8
+mysql -u root -p certificate < backend/db/migrations/V1__init.sql
+mysql -u root -p certificate < backend/db/migrations/V2__template_details.sql
 
-git clone https://github.com/Devansh-1007/Certificate_Generator.git
+# 2. Backend
+cd backend
+pip install -r requirements.txt
+cp Env/.env.example Env/.env    # fill in MySQL, JWT_SECRET, R2 keys, LLM key
+python main.py                  # http://localhost:5000  (Swagger at /apidocs)
 
-cd Certificate_Generator
-
+# 3. Frontend
+cd ../frontend
+npm install && npm start        # http://localhost:3000
 ```
 
-2.  **Frontend Setup**:
+## Auth model
 
-Navigate to the frontend folder:
+- `POST /loginAdmin` — `ADMIN_USER`/`ADMIN_PASSWORD` (.env) → JWT with `role=admin`
+- `POST /registerClient` (admin JWT) — creates a client with a hashed password
+- `POST /loginClient` — client credentials → JWT with `role=client` (12h expiry)
+- Protected routes accept `Authorization: Bearer <jwt>` (or legacy `x-token`)
+
+## Tests
 
 ```bash
-
-cd frontend
-
+cd backend && pytest -q   # template engine, agent self-correction (fake LLM), JWT auth
 ```
 
-3. Install the frontend dependencies:
-
-```bash
-
-npm install
-
-```
-
-4. Start the frontend server:
-
-```bash
-
-npm start
-
-```
-
-The frontend will be accessible at [http://localhost:3000](http://localhost:3000).
-
----
-
-## Usage 📖
-
-### Step 1: Access the Web Interface
-
-Once both servers are running, open your browser and go to [http://localhost:3000](http://localhost:3000). The application will display a certificate template where you can:
-
-- Enter the recipient’s name
-
-- Set the event details (event name, date, etc.)
-
-- Preview the certificate in real-time
-
-### Step 2: Generate Certificate
-
-Click on the **Generate Certificate** button. The backend will handle the request, populate the chosen template with the provided data, and return a downloadable PDF file.
-
-### Step 3: Download & Use
-
-Once the certificate is generated, you can download the PDF and print or distribute it electronically.
-
----
-
-## API Endpoints 🌐
-
-The backend exposes several API endpoints for generating certificates programmatically:
-
-- **POST /generate**: Generate a certificate with the provided data.
-
-```
-
-
-
-Certificate_Generator/
-
-│
-
-├── backend/
-
-│ ├── main.py # Main Flask app
-
-│ ├── templates/ # HTML templates for certificates
-
-│ ├── static/ # Static files (CSS, JS, Images)
-
-│ └── ... # Other backend files
-
-│
-
-├── frontend/
-
-│ ├── public/ # Public static files
-
-│ ├── src/ # React components
-
-│ └── ... # Other frontend files
-
-│
-
-└── README.md # This file
-
-
-```
+See [ROADMAP.md](ROADMAP.md) for what's done and what's next
+(bulk pipeline + verification agent, evals, signed QR verification, CI/deploy).

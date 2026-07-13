@@ -1,25 +1,30 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Home from "./components/Home";
-import Register from "./components/Register";
-import Login from "./components/Login";
-import Dashboard from "./components/Dashboard";
-import GenerateID from "./components/GenerateID";
-import GenerateCertificate from "./components/GenerateCertificate";
+import { AuthProvider } from "./context/AuthContext";
+import Navbar from "./components/Navbar";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import GenerateCertificate from "./pages/GenerateCertificate";
+import GenerateId from "./pages/GenerateId";
+import TemplateDesigner from "./pages/TemplateDesigner";
 
-// Main app component
-const App = () => {
-  return (
+const App = () => (
+  <AuthProvider>
     <BrowserRouter>
+      <Navbar />
       <Routes>
-        <Route exact path="/" element={<Home />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/generate-id" element={<GenerateID />} />
-        <Route path="/generate-certificate" element={<GenerateCertificate />} />
+        <Route path="/register" element={<ProtectedRoute adminOnly><Register /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/generate-certificate" element={<ProtectedRoute><GenerateCertificate /></ProtectedRoute>} />
+        <Route path="/generate-id" element={<ProtectedRoute><GenerateId /></ProtectedRoute>} />
+        <Route path="/designer" element={<ProtectedRoute><TemplateDesigner /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
-  );
-};
+  </AuthProvider>
+);
 
 export default App;

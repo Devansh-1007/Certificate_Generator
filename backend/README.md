@@ -1,105 +1,48 @@
-# Flask Project - Certificate and ID Card Generation API
+# Backend — Flask API
 
-This Flask project provides a RESTful API for generating certificates and ID cards, registering clients, and authenticating users. It offers a convenient way to manage certificate and ID card generation processes and allows clients to securely access and retrieve their generated documents.
+## Layout
 
-## Project Structure and Files
-
-The project is structured as follows:
-
-- **config.py**: This file contains configuration settings for the project, such as database connection details and file paths.
-- **certificates.py**: This module handles the generation and retrieval of certificates.
-- **idCard.py**: This module handles the generation and retrieval of ID cards.
-- **authentication.py**: This module provides functions for user authentication and token generation.
-- **dataHandling.py**: This module handles the insertion and retrieval of data from the database.
-- **piCodes.py**: This module contains functions for generating QR codes and barcodes.
-- **registerClient.py**: This module handles the registration of clients.
-- **loginClient.py**: This module handles client login and authentication.
-- **app.py**: This is the main application file that defines the Flask routes and API endpoints.
-
-
-## Environment Variables
-
-# MySQL credentials
-
-MYSQL_HOST
-
-MYSQL_USER
-
-MYSQL_PASS
-
-MYSQL_DB
-
-MYSQL_PORT
-
-# Certificate file paths
-
-BASE_CERT_PATH
-
-BASE_IDCARD_PATH
-
-FONT_PATH
-
-# Certificate Paths
-
-ALL_CERT_PATH
-
-ALL_CERT_IMG_PATH
-
-ALL_CERT_PDF_PATH
-
-# ID Card Paths
-
-ALL_ID_PATH
-
-ALL_ID_IMG_PATH=${ALL_ID_PATH}/Images
-
-ALL_ID_PDF_PATH=${ALL_ID_PATH}/PDFs
-
-# S3 Bucket
-
-BUCKET
-
-## .env file path
-
-ENV_FILEPATH 
-
-# API Endpoints
-
-The project exposes the following API endpoints:
-
-- **POST /registerClient**: This endpoint allows clients to register by providing their client ID, client name, and password. The client information is securely stored in the database.
-- **POST /loginClient**: Clients can use this endpoint to authenticate themselves by providing their client ID, client name, and password. Upon successful authentication, a token is generated and returned to the client.
-- **POST /generateCertificate**: This endpoint generates a certificate for the authenticated client. The client must provide the desired certificate name. The certificate image and PDF paths are stored in the database.
-- **POST /generateId**: This endpoint generates an ID card for the authenticated client. The client must provide the desired ID card name. The ID card image and PDF paths are stored in the database.
-- **GET /getCertificate**: Clients can use this endpoint to retrieve a certificate file (PDF or image) by specifying the certificate name and file extension.
-- **GET /getId**: Clients can use this endpoint to retrieve an ID card file (PDF or image) by specifying the ID card name and file extension.
-
-## Dependencies and Setup
-
-To run the Flask project, make sure you have the following dependencies installed:
-
-- Flask
-- Flasgger
-- Werkzeug
-- bcrypt
-- Other dependencies specified in the `requirements.txt` file.
-
-You can install the dependencies using the following command:
-
-```shell
-$ pip install -r requirements.txt
+```
+main.py              entrypoint: app config + blueprint registration
+middleware.py        @require_client / @require_admin (JWT)
+auth_jwt.py          HS256 issue/decode (sub, name, role, exp)
+models.py            Certificate / IdCard / Client
+routes/              clientRoutes, certificateRoutes, idRoutes, templateRoutes
+templateEngine/      schema.py (JSON Schema + semantic checks), renderer.py (PIL), presets/
+aiDesigner/          llm.py (Anthropic/OpenAI/Ollama over HTTP), agent.py (self-correcting loop)
+db/migrations/       V1__init.sql, V2__template_details.sql
+awsS3.py             S3-compatible storage (R2/B2/MinIO via S3_ENDPOINT_URL)
+Env/.env.example     configuration template
 ```
 
-## Usage
+## Setup
 
-To run the application, execute the `main.py` file. The application will run in debug mode, allowing for convenient development and testing.
-
-```shell
-$ python main.py
+```bash
+pip install -r requirements.txt
+cp Env/.env.example Env/.env   # fill in values
+# run db/migrations/*.sql against MySQL in order
+python main.py                 # Swagger UI at /apidocs
+pytest -q                      # 16 tests, no DB/network needed
 ```
 
-Make sure to configure the necessary settings in the `config.py` file, such as the database connection details and file paths.
+## Endpoints
 
-## Conclusion
+| Method | Route                 | Auth   | Purpose                              |
+|--------|-----------------------|--------|--------------------------------------|
+| POST   | /loginAdmin           | none   | admin credentials -> admin JWT       |
+| POST   | /loginClient          | none   | client credentials -> client JWT     |
+| POST   | /registerClient       | admin  | create client (hashed password)      |
+| POST   | /generateCertificate  | client | render + upload + persist            |
+| GET    | /getCertificate       | client | fetch PNG/PDF                        |
+| GET    | /getAllCertificate    | client | gallery (base64 list)                |
+| POST   | /generateId           | client | ID card with QR                      |
+| GET    | /getId, /getAllId     | client | fetch ID assets                      |
+| POST   | /designTemplate       | client | AI agent designs a template          |
+| POST   | /renderPreview        | client | render any valid template to PNG     |
+| POST   | /saveTemplate         | client | persist template (per-client)        |
+| GET    | /templates            | client | list saved templates                 |
 
-This Flask project provides a robust API for generating certificates and ID cards, registering clients, and handling user authentication. It follows a modular structure, separating different functionalities into separate modules. The API endpoints allow clients to interact with the system securely and retrieve their generated documents. With proper configuration and setup, this project can be easily extended and integrated into larger applications or systems requiring certificate and ID card generation capabilities.
+## AI designer env
+
+`LLM_PROVIDER=anthropic|openai|ollama`, `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`
+(none for ollama), optional `LLM_MODEL`.
