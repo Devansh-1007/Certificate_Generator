@@ -36,6 +36,10 @@ app.config["SWAGGER"] = {
 swagger = Swagger(app)
 CORS(app)
 
+from templateRoutes import templates_bp
+
+app.register_blueprint(templates_bp)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
