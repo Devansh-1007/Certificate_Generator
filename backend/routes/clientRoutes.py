@@ -32,6 +32,24 @@ def register():
         return str(error), 500
 
 
+@client_bp.route("/loginAdmin", methods=["POST"])
+def login_admin():
+    """Admin login: ADMIN_USER / ADMIN_PASSWORD from .env -> JWT with role=admin."""
+    import os, hmac
+    from auth_jwt import issue_token
+
+    data = request.get_json() or {}
+    user = os.getenv("ADMIN_USER", "")
+    password = os.getenv("ADMIN_PASSWORD", "")
+    if (
+        user and password
+        and hmac.compare_digest(data.get("USERNAME", ""), user)
+        and hmac.compare_digest(data.get("PASSWORD", ""), password)
+    ):
+        return jsonify({"access_token": issue_token(user, user, role="admin"), "role": "admin"}), 200
+    return jsonify({"error": "Invalid admin credentials"}), 401
+
+
 @client_bp.route("/loginClient", methods=["POST"])
 @swag_from(swagger_doc("login_client.yaml"))
 def login():
