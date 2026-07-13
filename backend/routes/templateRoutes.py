@@ -1,12 +1,10 @@
 """
-Template + AI designer endpoints (Flask blueprint).
+Template + AI designer endpoints — all protected by require_client.
 
 POST /designTemplate   {"PROMPT": "..."}                      -> AI-designed template JSON
 POST /renderPreview    {"TEMPLATE": {...}, "DATA": {...}}     -> PNG preview (base64)
 POST /saveTemplate     {"TEMPLATE": {...}}                    -> persist template for client
 GET  /templates                                               -> list this client's templates
-
-All routes use the existing x-client-id / x-token auth scheme.
 """
 
 import io
@@ -14,9 +12,9 @@ import json
 import base64
 import logging
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 
-from authentication import verifyToken
+from middleware import require_client
 from dataHandling import configureMySQL
 from templateEngine import validate_template, render_template, extract_placeholders
 from aiDesigner import design_template
@@ -28,23 +26,9 @@ logging.basicConfig(
 templates_bp = Blueprint("templates", __name__)
 
 
-def _auth():
-    """Mirror the generateCertificate auth pattern. Returns client id or None."""
-    client = request.headers.get("x-client-id")
-    token = request.headers.get("x-token")
-    if not client or not token:
-        return None
-    if client != verifyToken(client, token):
-        return None
-    return client
-
-
 @templates_bp.route("/designTemplate", methods=["POST"])
+@require_client
 def design():
-    client = _auth()
-    if client is None:
-        return jsonify({"description": "Token not verified"}), 401
-
     data = request.get_json() or {}
     prompt = data.get("PROMPT", "").strip()
     if not prompt:
@@ -69,11 +53,8 @@ def design():
 
 
 @templates_bp.route("/renderPreview", methods=["POST"])
+@require_client
 def preview():
-    client = _auth()
-    if client is None:
-        return jsonify({"description": "Token not verified"}), 401
-
     data = request.get_json() or {}
     template = data.get("TEMPLATE")
     if not template:
@@ -97,11 +78,8 @@ def preview():
 
 
 @templates_bp.route("/saveTemplate", methods=["POST"])
+@require_client
 def save():
-    client = _auth()
-    if client is None:
-        return jsonify({"description": "Token not verified"}), 401
-
     data = request.get_json() or {}
     template = data.get("TEMPLATE")
     if not template:
@@ -111,6 +89,7 @@ def save():
     if not ok:
         return jsonify({"status": "Error", "ERRORS": errors}), 400
 
+    client = g.client_id
     mydb = configureMySQL()
     cursor = mydb.cursor()
     sql = (
@@ -129,16 +108,13 @@ def save():
 
 
 @templates_bp.route("/templates", methods=["GET"])
+@require_client
 def list_templates():
-    client = _auth()
-    if client is None:
-        return jsonify({"description": "Token not verified"}), 401
-
     mydb = configureMySQL()
     cursor = mydb.cursor()
     cursor.execute(
         "SELECT TEMPLATE_NAME, TEMPLATE_JSON, UPDATED_ON FROM TEMPLATE_DETAILS WHERE CLIENT_ID = %s",
-        (client,),
+        (g.client_id,),
     )
     rows = cursor.fetchall()
     return jsonify({

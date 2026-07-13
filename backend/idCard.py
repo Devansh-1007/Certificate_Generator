@@ -1,5 +1,4 @@
 from img2pdf import convert
-from tkinter import Image
 from PIL import Image
 from flask import jsonify
 from config import *

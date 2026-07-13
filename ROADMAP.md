@@ -16,9 +16,18 @@
 
 ### Setup
 1. `pip install -r requirements.txt` (schema/renderer need nothing new; `requests` already present)
-2. Run `MysqlTemplateTable.sql` against the DB.
+2. Run `db/migrations/V1__init.sql` then `V2__template_details.sql` against MySQL.
 3. Env: `LLM_PROVIDER=anthropic|openai|ollama`, matching API key (`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`), optional `LLM_MODEL`.
 4. `pytest backend/test_template_engine.py -v`
+
+### Architecture restructure (task.txt item — done)
+- `backend/routes/` — blueprints: `clientRoutes` (login unprotected, register admin-only), `certificateRoutes`, `idRoutes`, `templateRoutes`; `main.py` is now a slim entrypoint.
+- `backend/middleware.py` — `@require_client` / `@require_admin` decorators (protected vs unprotected routes).
+- `backend/models.py` — Certificate / IdCard / Client domain objects.
+- `backend/db/migrations/` — versioned SQL: `V1__init.sql`, `V2__template_details.sql`.
+- `backend/awsS3.py` — S3-compatible storage: set `S3_ENDPOINT_URL` (+ keys) for Cloudflare R2/B2/MinIO; unset = AWS. Presigned URLs no longer stripped of their signature.
+- `backend/Env/.env.example` — full env template (MySQL, R2, admin token, LLM provider).
+- Bug fixes found during the split: `generateID()` was called with 4 args but takes 3; dead `tkinter` import removed.
 
 ## Next
 
@@ -33,4 +42,4 @@
 - Split `main.py` into blueprints (see task.txt middleware note); frontend designer panel with live `/renderPreview`; GitHub Actions CI; deploy (Render/Fly); README architecture diagram + demo GIF.
 
 ## Security note
-A leaked OpenAI key was removed from `backend/task.txt` — **revoke it** (platform.openai.com) and consider rewriting git history (`git filter-repo`) since it remains in old commits on the public repo.
+A leaked OpenAI key was removed from `backend/task.txt` — **revoke it** (platform.openai.com). The file is gitignored, so it was never pushed; no history rewrite needed.

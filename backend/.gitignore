@@ -4,4 +4,5 @@ All_Certificates/Images/*
 All_Certificates/PDFs/*
 All_IdCards/Images/*
 All_IdCards/PDFs/*
-task.txtvenv/
+task.txt
+venv/
