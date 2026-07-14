@@ -45,3 +45,5 @@ def test_middleware_roles():
         assert tc.get("/c", headers={"Authorization": "Bearer " + client_tok}).status_code == 200
         assert tc.get("/a", headers={"x-token": client_tok}).status_code == 401
         assert tc.get("/a", headers={"x-token": admin_tok}).status_code == 200
+        # admins are not clients: clear 403 instead of a DB foreign-key error
+        assert tc.get("/c", headers={"x-token": admin_tok}).status_code == 403

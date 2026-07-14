@@ -1,7 +1,9 @@
 """
 Auth middleware — protected vs unprotected routes, JWT-based.
 
-@require_client — any valid JWT (role client or admin); g.client_id = sub.
+@require_client — valid JWT with role=client; g.client_id = sub. Admin tokens
+                  are rejected with 403: admins manage clients but do not own
+                  certificates (CLIENT_ID is a foreign key to CLIENT_DETAILS).
 @require_admin  — valid JWT with role=admin, or the bootstrap ADMIN_TOKEN
                   from .env (so the first admin/client can be registered).
 
@@ -42,8 +44,16 @@ def require_client(f):
             return jsonify({"description": "Token expired — log in again"}), 401
         except pyjwt.InvalidTokenError:
             return jsonify({"description": "Token not verified"}), 401
+        if claims.get("role", "client") != "client":
+            return (
+                jsonify({
+                    "description": "Admins manage clients but don't own certificates — "
+                                   "sign in with a client account to generate."
+                }),
+                403,
+            )
         g.client_id = claims["sub"]
-        g.role = claims.get("role", "client")
+        g.role = "client"
         return f(*args, **kwargs)
 
     return wrapper
