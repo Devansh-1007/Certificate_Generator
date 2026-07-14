@@ -79,8 +79,12 @@ class LLMClient:
         return {"tool_input": tool_input, "text": text}
 
     def _openai(self, messages, tool):
+        # OPENAI_BASE_URL lets any OpenAI-compatible API serve this provider:
+        # Groq (https://api.groq.com/openai/v1), Google Gemini
+        # (https://generativelanguage.googleapis.com/v1beta/openai), OpenRouter, etc.
+        base = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
         resp = requests.post(
-            "https://api.openai.com/v1/chat/completions",
+            base + "/chat/completions",
             headers={"Authorization": "Bearer " + os.environ["OPENAI_API_KEY"]},
             json={
                 "model": self.model,
