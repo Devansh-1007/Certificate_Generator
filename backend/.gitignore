@@ -1,8 +1,11 @@
 __pycache__
 Env/.env
 All_Certificates/Images/*
-All_Certificates/PDFs/*
+All_Certificates/Pdfs/*
 All_IdCards/Images/*
-All_IdCards/PDFs/*
+All_IdCards/Pdfs/*
+All_Batches/
 task.txt
 venv/
+.pytest_cache/
+logging.log

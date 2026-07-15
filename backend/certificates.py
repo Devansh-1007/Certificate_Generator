@@ -48,50 +48,61 @@ def build_data(template, RECIPIENT_NAME, CLIENT_ID, overrides=None):
     return data
 
 
-def generateCert(CERTIFICATE_NAME, CLIENT_ID, template=None, overrides=None):
+def render_certificate(CERTIFICATE_NAME, CLIENT_ID, template=None, overrides=None):
+    """
+    Render one certificate to disk (PNG + PDF), upload to object storage if
+    available, and return a plain dict. No Flask request/app context required,
+    so this is safe to call from a background worker thread (bulk pipeline).
+    """
+    template = template or default_template()
+    image = render_template(template, build_data(template, CERTIFICATE_NAME, CLIENT_ID, overrides))
+
+    img_folder_path = os.path.join(allCertImgPath, CLIENT_ID)
+    pdf_folder_path = os.path.join(allCertPdfPath, CLIENT_ID)
+    os.makedirs(img_folder_path, exist_ok=True)
+    os.makedirs(pdf_folder_path, exist_ok=True)
+    img_path = os.path.join(img_folder_path, CERTIFICATE_NAME + ".png")
+    pdf_path = os.path.join(pdf_folder_path, CERTIFICATE_NAME + ".pdf")
+
+    image.save(img_path)
+    with open(pdf_path, "wb") as f:
+        f.write(convert(img_path))
+
+    image_url = pdf_url = None
     try:
-        template = template or default_template()
-        image = render_template(template, build_data(template, CERTIFICATE_NAME, CLIENT_ID, overrides))
+        upload_file(img_path, bucket, img_path)
+        upload_file(pdf_path, bucket, pdf_path)
+        image_url = getSignedUrl(img_path, bucket)
+        pdf_url = getSignedUrl(pdf_path, bucket)
+        logging.info("Files uploaded for Client ID: '%s'", CLIENT_ID)
+    except Exception as e:
+        # storage optional in local dev — the certificate still exists on disk
+        logging.warning("Object storage unavailable (%s) — serving local copy", str(e))
 
-        img_folder_path = os.path.join(allCertImgPath, CLIENT_ID)
-        pdf_folder_path = os.path.join(allCertPdfPath, CLIENT_ID)
-        os.makedirs(img_folder_path, exist_ok=True)
-        os.makedirs(pdf_folder_path, exist_ok=True)
-        img_path = os.path.join(img_folder_path, CERTIFICATE_NAME + ".png")
-        pdf_path = os.path.join(pdf_folder_path, CERTIFICATE_NAME + ".pdf")
+    with open(img_path, "rb") as b:
+        encoded_image = base64.b64encode(b.read()).decode("utf-8")
 
-        image.save(img_path)
-        with open(pdf_path, "wb") as f:
-            f.write(convert(img_path))
+    logging.info("Certificate generated for Client ID: '%s'", CLIENT_ID)
+    return {
+        "status": "Success",
+        "description": "Certificate generated",
+        "CERTIFICATE_DETAILS": {
+            "CERTIFICATE_NAME": CERTIFICATE_NAME,
+            "CLIENT_ID": CLIENT_ID,
+            "TEMPLATE": template.get("name"),
+            "IMAGE_URL": image_url,
+            "PDF_URL": pdf_url,
+            "BASE64": encoded_image,
+            "IMG_PATH": img_path,
+            "PDF_PATH": pdf_path,
+        },
+    }
 
-        image_url = pdf_url = None
-        try:
-            upload_file(img_path, bucket, img_path)
-            upload_file(pdf_path, bucket, pdf_path)
-            image_url = getSignedUrl(img_path, bucket)
-            pdf_url = getSignedUrl(pdf_path, bucket)
-            logging.info("Files uploaded for Client ID: '%s'", CLIENT_ID)
-        except Exception as e:
-            # storage optional in local dev — the certificate still exists on disk
-            logging.warning("Object storage unavailable (%s) — serving local copy", str(e))
 
-        with open(img_path, "rb") as b:
-            encoded_image = base64.b64encode(b.read()).decode("utf-8")
-
-        details = {
-            "status": "Success",
-            "description": "Certificate generated",
-            "CERTIFICATE_DETAILS": {
-                "CERTIFICATE_NAME": CERTIFICATE_NAME,
-                "CLIENT_ID": CLIENT_ID,
-                "TEMPLATE": template.get("name"),
-                "IMAGE_URL": image_url,
-                "PDF_URL": pdf_url,
-                "BASE64": encoded_image,
-            },
-        }
-        logging.info("Certificate generated for Client ID: '%s'", CLIENT_ID)
-        return jsonify(details)
+def generateCert(CERTIFICATE_NAME, CLIENT_ID, template=None, overrides=None):
+    """Flask-facing wrapper: renders one certificate and returns a JSON response."""
+    try:
+        return jsonify(render_certificate(CERTIFICATE_NAME, CLIENT_ID, template, overrides))
     except Exception as e:
         logging.error("Error generating certificate for Client ID '%s': %s", CLIENT_ID, str(e))
         return jsonify({"status": "Error", "description": "Certificate generation failed: " + str(e)})
