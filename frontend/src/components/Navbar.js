@@ -15,6 +15,7 @@ const Navbar = () => {
           {isAuthed ? (
             <>
               <Link to="/dashboard" className="text-slate-300 hover:text-white">Dashboard</Link>
+              <Link to="/bulk" className="text-slate-300 hover:text-white">Bulk</Link>
               <Link to="/designer" className="text-slate-300 hover:text-white">AI Designer</Link>
               {role === "admin" && (
                 <Link to="/register" className="text-amber-400 hover:text-amber-300">Register client</Link>

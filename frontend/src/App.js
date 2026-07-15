@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import GenerateCertificate from "./pages/GenerateCertificate";
+import BulkGenerate from "./pages/BulkGenerate";
 import GenerateId from "./pages/GenerateId";
 import TemplateDesigner from "./pages/TemplateDesigner";
 
@@ -20,6 +21,7 @@ const App = () => (
         <Route path="/register" element={<ProtectedRoute adminOnly><Register /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/generate-certificate" element={<ProtectedRoute><GenerateCertificate /></ProtectedRoute>} />
+        <Route path="/bulk" element={<ProtectedRoute><BulkGenerate /></ProtectedRoute>} />
         <Route path="/generate-id" element={<ProtectedRoute><GenerateId /></ProtectedRoute>} />
         <Route path="/designer" element={<ProtectedRoute><TemplateDesigner /></ProtectedRoute>} />
       </Routes>
