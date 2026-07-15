@@ -1,0 +1,152 @@
+{
+  "name": "Standard ID Card",
+  "description": "Portrait ID card with header band, holder name, and QR.",
+  "canvas": {
+    "width": 675,
+    "height": 1050,
+    "backgroundColor": [
+      255,
+      255,
+      255
+    ]
+  },
+  "elements": [
+    {
+      "id": "frame",
+      "type": "rect",
+      "x": 12,
+      "y": 12,
+      "width": 651,
+      "height": 1026,
+      "outline": [
+        30,
+        58,
+        95
+      ],
+      "outlineWidth": 4
+    },
+    {
+      "id": "header",
+      "type": "rect",
+      "x": 12,
+      "y": 12,
+      "width": 651,
+      "height": 200,
+      "fill": [
+        30,
+        58,
+        95
+      ]
+    },
+    {
+      "id": "org",
+      "type": "text",
+      "text": "{ORG_NAME}",
+      "y": 80,
+      "size": 44,
+      "font": "lora-bold",
+      "color": [
+        255,
+        255,
+        255
+      ],
+      "align": "center",
+      "maxWidth": 560
+    },
+    {
+      "id": "tag",
+      "type": "text",
+      "text": "IDENTITY CARD",
+      "y": 145,
+      "size": 24,
+      "font": "arial",
+      "color": [
+        176,
+        196,
+        222
+      ],
+      "align": "center"
+    },
+    {
+      "id": "name",
+      "type": "text",
+      "text": "{HOLDER_NAME}",
+      "y": 300,
+      "size": 52,
+      "font": "lora-bold",
+      "color": [
+        40,
+        40,
+        40
+      ],
+      "align": "center",
+      "maxWidth": 560
+    },
+    {
+      "id": "issuer",
+      "type": "text",
+      "text": "Issued by {CLIENT_ID}",
+      "y": 390,
+      "size": 26,
+      "font": "arial",
+      "color": [
+        110,
+        110,
+        110
+      ],
+      "align": "center",
+      "maxWidth": 560
+    },
+    {
+      "id": "qr",
+      "type": "qr",
+      "data": "{QR_DATA}",
+      "x": 187,
+      "y": 480,
+      "size": 300
+    },
+    {
+      "id": "scan",
+      "type": "text",
+      "text": "Scan to verify",
+      "y": 830,
+      "size": 22,
+      "font": "arial",
+      "color": [
+        110,
+        110,
+        110
+      ],
+      "align": "center"
+    },
+    {
+      "id": "footer-rule",
+      "type": "line",
+      "x1": 60,
+      "y1": 920,
+      "x2": 615,
+      "y2": 920,
+      "color": [
+        30,
+        58,
+        95
+      ],
+      "width": 2
+    },
+    {
+      "id": "footer",
+      "type": "text",
+      "text": "{ISSUE_DATE}",
+      "y": 945,
+      "size": 22,
+      "font": "arial",
+      "color": [
+        110,
+        110,
+        110
+      ],
+      "align": "center",
+      "maxWidth": 400
+    }
+  ]
+}

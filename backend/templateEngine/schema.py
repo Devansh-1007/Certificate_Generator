@@ -150,6 +150,14 @@ def validate_template(template):
     w = template["canvas"]["width"]
     h = template["canvas"]["height"]
 
+    import re as _re
+
+    def _est_width(el):
+        # rough width estimate; placeholders count as ~18 chars once filled
+        text = _re.sub(r"\{[A-Z0-9_]+\}", "X" * 18, el["text"])
+        est = int(len(text) * el["size"] * 0.55)
+        return min(est, el["maxWidth"]) if el.get("maxWidth") else est
+
     for i, el in enumerate(template["elements"]):
         tag = "element[{}] ({})".format(i, el.get("id", el["type"]))
         t = el["type"]
@@ -165,6 +173,21 @@ def validate_template(template):
                 errors.append("{}: align '{}' requires an explicit x".format(tag, el["align"]))
             if "x" in el and not (0 <= el["x"] < w):
                 errors.append("{}: x={} outside canvas width {}".format(tag, el["x"], w))
+            # horizontal overflow: centered text is anchored at x (or canvas centre)
+            est = _est_width(el)
+            if el.get("align", "center") == "center":
+                anchor = el.get("x", w // 2)
+                if anchor - est // 2 < 0 or anchor + est // 2 > w:
+                    errors.append(
+                        "{}: text ~{}px wide overflows the canvas when centered at x={} — "
+                        "remove x to center on the canvas, reduce size, or set maxWidth".format(
+                            tag, est, anchor
+                        )
+                    )
+            if "{" in el["text"] and not el.get("maxWidth"):
+                errors.append(
+                    "{}: text contains a placeholder — set maxWidth so long values shrink instead of overflowing".format(tag)
+                )
         elif t == "rect":
             if el["x"] < 0 or el["y"] < 0 or el["x"] + el["width"] > w or el["y"] + el["height"] > h:
                 errors.append("{}: rect exceeds canvas bounds ({}x{})".format(tag, w, h))

@@ -53,8 +53,26 @@ def generatecert():
             logging.info("Certificate already exists for CLIENT_ID: %s", CURRENT_CLIENT)
             return jsonify(details)
 
+        template = None
+        template_name = data.get("TEMPLATE_NAME")
+        if template_name and template_name != "Classic Achievement":
+            import json as _json
+            from dataHandling import configureMySQL
+            cur = configureMySQL().cursor()
+            cur.execute(
+                "SELECT TEMPLATE_JSON FROM TEMPLATE_DETAILS WHERE CLIENT_ID=%s AND TEMPLATE_NAME=%s",
+                (CURRENT_CLIENT, template_name),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return jsonify({"description": "Template '" + template_name + "' not found"}), 404
+            template = _json.loads(row[0])
+
         client = Client(CURRENT_CLIENT, "NULL", "NULL", "NULL", "NULL")
-        result = generateCert(CERTIFICATE_NAME, client.CLIENT_ID).json
+        result = generateCert(
+            CERTIFICATE_NAME, client.CLIENT_ID,
+            template=template, overrides=data.get("DATA") or {},
+        ).json
         client.CERTIFICATE = Certificate(CERTIFICATE_NAME, "NULL", "NULL", "NULL")
         client.CERTIFICATE.CERTIFICATE_IMG_PATH = result["CERTIFICATE_DETAILS"]["IMAGE_URL"]
         client.CERTIFICATE.CERTIFICATE_PDF_PATH = result["CERTIFICATE_DETAILS"]["PDF_URL"]

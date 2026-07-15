@@ -9,7 +9,6 @@ from config import bucket, allIdImgPath, allIdPdfPath
 from middleware import require_client
 from models import Client, IdCard
 from idCard import generateID
-from piCodes import generateQR
 from awsS3 import downloadFile
 from authentication import verify_ID
 from dataHandling import getIDInfo, insertId, getAllFile
@@ -46,13 +45,7 @@ def generateId():
             return jsonify(details)
 
         client = Client(CURRENT_CLIENT, "NULL", "NULL", "NULL", "NULL")
-        # NOTE: original main.py passed generateBar() as a 2nd arg but
-        # generateID(qr_img, ID_NAME, CLIENT_ID) takes 3 params — fixed here.
-        result = generateID(
-            generateQR(client, "ID_DETAILS"),
-            ID_NAME,
-            client.CLIENT_ID,
-        ).json
+        result = generateID(ID_NAME, client.CLIENT_ID, ORG_NAME=data.get("ORG_NAME")).json
         client.ID = IdCard(ID_NAME, "NULL", "NULL")
         client.ID.ID_IMG_PATH = result["ID_DETAILS"]["IMAGE_URL"]
         client.ID.ID_PDF_PATH = result["ID_DETAILS"]["PDF_URL"]
