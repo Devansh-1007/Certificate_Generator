@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 
 const actions = [
   ["/generate-certificate", "Generate certificate", "Render a named certificate to PNG + PDF."],
+  ["/bulk", "Bulk from roster", "Upload a CSV/Excel — review anomalies, batch-render, download zip."],
   ["/generate-id", "Generate ID card", "ID card with an embedded QR code."],
   ["/designer", "AI Template Designer", "Describe a design — the agent builds the template."],
 ];
