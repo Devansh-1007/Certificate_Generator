@@ -19,9 +19,10 @@ import zipfile
 import logging
 import threading
 
-from config import allCertImgPath, allCertPdfPath
+from config import allCertImgPath, allCertPdfPath, base_url
 from dataHandling import configureMySQL
 from certificates import render_certificate
+import verification
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -136,7 +137,14 @@ def _render_job(client_id, job_id, rows, template, name_field):
     for i, row in enumerate(rows):
         cert_name = _sanitize(row.get(name_field, ""))
         try:
-            result = render_certificate(cert_name, client_id, template=template, overrides=row)
+            overrides = dict(row)
+            cert_uid, _ = verification.create_record(
+                client_id, cert_name, overrides.get("EVENT_NAME"), overrides.get("ISSUE_DATE"),
+            )
+            overrides["VERIFY_URL"] = "{}/verify/{}".format(
+                (base_url or "http://localhost:5000").rstrip("/"), cert_uid
+            )
+            result = render_certificate(cert_name, client_id, template=template, overrides=overrides)
             det = result["CERTIFICATE_DETAILS"]
             try:
                 _insert_certificate_row(

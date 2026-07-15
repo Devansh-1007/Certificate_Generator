@@ -14,6 +14,8 @@ from routes.certificateRoutes import certificate_bp
 from routes.idRoutes import id_bp
 from routes.templateRoutes import templates_bp
 from routes.bulkRoutes import bulk_bp
+from routes.verifyRoutes import verify_bp
+from routes.accountRoutes import account_bp
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -47,6 +49,8 @@ app.register_blueprint(certificate_bp)
 app.register_blueprint(id_bp)
 app.register_blueprint(templates_bp)
 app.register_blueprint(bulk_bp)
+app.register_blueprint(verify_bp)
+app.register_blueprint(account_bp)
 
 
 if __name__ == "__main__":

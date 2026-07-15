@@ -5,12 +5,13 @@ import logging
 from flask import Blueprint, request, jsonify, send_file, g
 from flasgger import swag_from
 
-from config import bucket, allCertImgPath, allCertPdfPath
+from config import bucket, allCertImgPath, allCertPdfPath, base_url
 from middleware import require_client
 from models import Client, Certificate
 from certificates import generateCert
 from awsS3 import downloadFile
 from authentication import verify_Certificate
+import verification
 from dataHandling import (
     getCertificateInfo,
     insertCertificate,
@@ -68,11 +69,23 @@ def generatecert():
                 return jsonify({"description": "Template '" + template_name + "' not found"}), 404
             template = _json.loads(row[0])
 
+        # Issue a verifiable, signed UID and point the QR at the public verify URL.
+        overrides = dict(data.get("DATA") or {})
+        cert_uid, _ = verification.create_record(
+            CURRENT_CLIENT, CERTIFICATE_NAME,
+            overrides.get("EVENT_NAME"), overrides.get("ISSUE_DATE"),
+        )
+        overrides["VERIFY_URL"] = "{}/verify/{}".format(
+            (base_url or "http://localhost:5000").rstrip("/"), cert_uid
+        )
+
         client = Client(CURRENT_CLIENT, "NULL", "NULL", "NULL", "NULL")
         result = generateCert(
             CERTIFICATE_NAME, client.CLIENT_ID,
-            template=template, overrides=data.get("DATA") or {},
+            template=template, overrides=overrides,
         ).json
+        result["CERTIFICATE_DETAILS"]["CERT_UID"] = cert_uid
+        result["CERTIFICATE_DETAILS"]["VERIFY_URL"] = overrides["VERIFY_URL"]
         client.CERTIFICATE = Certificate(CERTIFICATE_NAME, "NULL", "NULL", "NULL")
         client.CERTIFICATE.CERTIFICATE_IMG_PATH = result["CERTIFICATE_DETAILS"]["IMAGE_URL"]
         client.CERTIFICATE.CERTIFICATE_PDF_PATH = result["CERTIFICATE_DETAILS"]["PDF_URL"]
