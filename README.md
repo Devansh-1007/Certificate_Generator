@@ -52,11 +52,24 @@ npm install && npm start        # http://localhost:3000
 - `POST /loginClient` — client credentials → JWT with `role=client` (12h expiry)
 - Protected routes accept `Authorization: Bearer <jwt>` (or legacy `x-token`)
 
+## Bulk pipeline (maker-checker)
+
+Generate certificates for a whole roster in one pass, with a data-quality gate:
+
+- `POST /bulk/upload` — multipart `file` (CSV / TSV / XLSX) + `TEMPLATE_NAME` + optional
+  `MAPPING`. Parses the roster, maps columns to template placeholders, and runs the
+  **anomaly agent** (missing / whitespace / casing / exact + fuzzy duplicates via
+  rapidfuzz), returning a review report + a cleaned-row preview. Creates a `PENDING_REVIEW` job.
+- `GET /bulk/jobs`, `GET /bulk/jobs/<id>` — list / inspect jobs (status, progress, errors).
+- `POST /bulk/jobs/<id>/approve` — send back the final, human-approved rows; a background
+  worker renders each through the template engine and records it.
+- `GET /bulk/jobs/<id>/download` — the rendered certificates as a zip.
+
 ## Tests
 
 ```bash
-cd backend && pytest -q   # template engine, agent self-correction (fake LLM), JWT auth
+cd backend && pytest -q   # template engine, agent self-correction (fake LLM), bulk parser + anomaly agent, JWT auth
 ```
 
 See [ROADMAP.md](ROADMAP.md) for what's done and what's next
-(bulk pipeline + verification agent, evals, signed QR verification, CI/deploy).
+(bulk UI + true async, evals, signed QR verification, CI/deploy).
