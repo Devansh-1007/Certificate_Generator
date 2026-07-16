@@ -83,6 +83,27 @@ def getId():
         return "File Not Found"
 
 
+@id_bp.route("/idCards", methods=["GET"])
+@require_client
+def list_id_cards():
+    """List this client's ID cards (name + created date) for the ID cards page."""
+    from dataHandling import configureMySQL
+    try:
+        db = configureMySQL()
+        cur = db.cursor()
+        cur.execute(
+            "SELECT ID_NAME, CREATED_ON FROM ID_DETAILS WHERE CLIENT_ID=%s ORDER BY CREATED_ON DESC",
+            (g.client_id,),
+        )
+        rows = cur.fetchall()
+        return jsonify({
+            "status": "Success",
+            "ID_CARDS": [{"ID_NAME": r[0], "CREATED_ON": str(r[1])} for r in rows],
+        })
+    except Exception as error:
+        return jsonify({"description": "Failed to list ID cards", "error": str(error)}), 500
+
+
 @id_bp.route("/getAllId", methods=["GET"])
 @swag_from(swagger_doc("get_AllId.yaml"))
 @require_client
