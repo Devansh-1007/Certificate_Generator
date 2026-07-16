@@ -34,7 +34,8 @@ def _resolve_template(client_id, template_name):
     """Return the template JSON for this client, or the built-in default."""
     if not template_name or template_name == DEFAULT_TEMPLATE_NAME:
         return default_template()
-    cur = configureMySQL().cursor()
+    db = configureMySQL()  # keep connection referenced (error 2055 otherwise)
+    cur = db.cursor()
     cur.execute(
         "SELECT TEMPLATE_JSON FROM TEMPLATE_DETAILS WHERE CLIENT_ID=%s AND TEMPLATE_NAME=%s",
         (client_id, template_name),
