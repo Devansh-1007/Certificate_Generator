@@ -93,11 +93,21 @@ const GenerateCertificate = () => {
           {result.BASE64 && (
             <img src={`data:image/png;base64,${result.BASE64}`} alt="certificate" className="mb-4 rounded-lg border border-slate-800" />
           )}
-          <div className="flex gap-4 text-sm">
+          <div className="flex flex-wrap gap-4 text-sm">
             {result.IMAGE_URL && <a className="text-amber-400 hover:underline" href={result.IMAGE_URL} target="_blank" rel="noreferrer">Open PNG</a>}
             {result.PDF_URL && <a className="text-amber-400 hover:underline" href={result.PDF_URL} target="_blank" rel="noreferrer">Open PDF</a>}
+            {result.CERT_UID && (
+              <a className="text-sky-400 hover:underline" href={`/verify/${result.CERT_UID}`} target="_blank" rel="noreferrer">
+                Verification page
+              </a>
+            )}
             {!result.IMAGE_URL && <span className="text-slate-500">Object storage not configured — image shown from local render.</span>}
           </div>
+          {result.CERT_UID && (
+            <p className="mt-2 text-xs text-slate-500">
+              Certificate ID <code className="text-slate-400">{result.CERT_UID}</code> — the QR on the certificate links here.
+            </p>
+          )}
         </div>
       )}
     </main>

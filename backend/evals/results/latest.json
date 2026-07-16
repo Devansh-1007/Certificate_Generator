@@ -1,0 +1,285 @@
+{
+  "provider": "fake",
+  "summary": {
+    "total": 30,
+    "pass_rates": {
+      "agent_ok": 1.0,
+      "schema_valid": 1.0,
+      "render_ok": 1.0,
+      "layout_ok": 1.0
+    },
+    "avg_attempts": 1.0
+  },
+  "rows": [
+    {
+      "prompt": "A formal gold-bordered certificate of achievement for a hackathon, with a verification QR.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A minimalist certificate of completion for an online course, navy text on white.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "An elegant certificate of appreciation for a volunteer, cursive title, soft border.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A bold certificate of excellence for a sales team member, dark background, bright accent.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A playful participation certificate for a kids' science fair, rounded friendly layout.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A corporate certificate of training completion with the issue date and a signatory line.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A university-style diploma for a data science bootcamp graduate.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate of merit for a spelling-bee winner, classic serif styling.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A sleek modern certificate for a design workshop, lots of whitespace.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate honoring 10 years of service, prestigious and understated.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A sports tournament winner certificate, energetic, with a place for the event name.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate of authenticity for a limited-edition artwork, with a QR to verify.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A wellness challenge completion certificate, calm green palette.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A coding competition runner-up certificate, tech-inspired look.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate of recognition for an outstanding teacher.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A conference speaker certificate with the talk title and date.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A first-aid training certification card layout, compact and official.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate of graduation from a leadership program, formal and warm.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A hackathon 'best design' award certificate with a verification link.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate for completing a marathon, bold finisher styling.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A membership certificate for a professional association.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate of participation for a webinar, simple and clean.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "An employee of the month certificate, celebratory but professional.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate of excellence for academic performance, deep blue and gold.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A workshop facilitation certificate with the facilitator and date fields.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate acknowledging a research paper presentation.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate of completion for a language course, elegant and simple.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A safety training certificate for a construction crew, high-visibility styling.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate for winning a debate competition, formal serif with a crest feel.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "prompt": "A certificate of appreciation for a keynote sponsor, premium and minimal.",
+      "agent_ok": true,
+      "schema_valid": true,
+      "render_ok": true,
+      "layout_ok": true,
+      "attempts": 1,
+      "error": null
+    }
+  ]
+}

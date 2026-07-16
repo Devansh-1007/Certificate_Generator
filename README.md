@@ -65,10 +65,34 @@ Generate certificates for a whole roster in one pass, with a data-quality gate:
   worker renders each through the template engine and records it.
 - `GET /bulk/jobs/<id>/download` — the rendered certificates as a zip.
 
+## Verifiable certificates
+
+Every generated certificate gets a short, unguessable UID with an HMAC-SHA256
+signature over its identifying fields; the on-certificate QR encodes
+`{BASE_URL}/verify/<uid>`.
+
+- `GET /verify/<uid>` — **public**; returns `genuine` / `tampered` / `revoked` / `not_found`.
+  Tampering with any stored field breaks the signature, so records are tamper-evident.
+- `GET /myCertificates`, `POST /revokeCertificate/<uid>`, `POST /reinstateCertificate/<uid>` — client-owned management.
+- Key from `VERIFY_SECRET` (falls back to `JWT_SECRET`).
+
+## Evals
+
+Measure how well the AI designer handles open-ended prompts:
+
+```bash
+cd backend
+python -m evals.run_evals              # uses the configured LLM_PROVIDER
+python -m evals.run_evals --fake       # offline smoke, no API key/network
+```
+
+Scores each prompt on agent-success / schema-valid / render-ok / layout-ok and
+writes `evals/results/latest.{json,md}`. `--min-pass` sets a CI gate.
+
 ## Tests
 
 ```bash
-cd backend && pytest -q   # template engine, agent self-correction (fake LLM), bulk parser + anomaly agent, JWT auth
+cd backend && pytest -q   # template engine, agent self-correction (fake LLM), bulk anomaly agent, signing/verification, JWT auth
 ```
 
 See [ROADMAP.md](ROADMAP.md) for what's done and what's next
