@@ -16,7 +16,7 @@
 
 ### Setup
 1. `pip install -r requirements.txt` (bulk Excel parsing adds `openpyxl`; CSV needs nothing extra)
-2. Run `db/migrations/V1__init.sql`, `V2__template_details.sql`, then `V3__batch_jobs.sql` against MySQL.
+2. Run `db/migrations/V1__init.sql`, `V2__template_details.sql`, `V3__batch_jobs.sql`, then `V4__certificate_verify.sql` against MySQL.
 3. Env: `LLM_PROVIDER=anthropic|openai|ollama`, matching API key (`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`), optional `LLM_MODEL`.
 4. `pytest backend/test_template_engine.py -v`
 
@@ -37,18 +37,24 @@
 - `backend/db/migrations/V3__batch_jobs.sql` — `BATCH_JOBS` table (status, progress counters, rows/anomalies/errors JSON, zip path).
 - `backend/test_bulk.py` — 18 pytest cases for parsing, mapping, and every anomaly type (no DB/network). All passing.
 
-## Next
-
-### Phase 3.5 — Bulk UI + true async
-- Frontend page: upload → anomaly review table (accept/edit suggestions inline) → approve → live progress → download zip.
-- Swap the daemon thread for a real task queue (RQ/Celery) if batch sizes grow; today's thread is fine for classroom/event scale.
+### Phase 3.5 — Full-fledged UI (every endpoint wired)
+- New pages: public **Verify** (`/verify/:id`, genuine/tampered/revoked banner), **My certificates** (download PNG/PDF, verify link, revoke/reinstate), **Templates** manager (preview + delete), **ID cards** gallery, **Batch jobs** history (progress + zip download), and the bulk upload→review→progress→download flow.
+- Dashboard revamped with a live `/stats` strip; Navbar expanded; verify link + certificate ID surfaced on the single-cert result.
 
 ### Phase 4 — Evals + verifiable certificates
-- Eval set (~50 design prompts); measure schema pass rate, render success, layout validity; publish numbers in README.
-- HMAC/Ed25519-signed certificate IDs behind the {VERIFY_URL} QR; public `GET /verify/<id>`.
+- `backend/verification.py` — HMAC-SHA256 signed, unguessable certificate UIDs (keyed by `VERIFY_SECRET`); request-free DB helpers; `public_result` returns genuine / tampered / revoked / not_found. Wired into the single-cert route and the bulk worker so the QR encodes `{BASE_URL}/verify/<uid>`.
+- `backend/routes/verifyRoutes.py` — public `GET /verify/<uid>`; client `GET /myCertificates`, `POST /revokeCertificate/<uid>`, `POST /reinstateCertificate/<uid>`.
+- `backend/routes/accountRoutes.py` — `GET /stats`, `DELETE /templates/<name>`.
+- `backend/db/migrations/V4__certificate_verify.sql` — `CERTIFICATE_VERIFY` table (uid, fields, signature, status).
+- `backend/evals/` — ~30-prompt design eval set + `run_evals.py` scoring agent success / schema-valid / render-ok / layout-ok, writing `results/latest.{json,md}`; offline `--fake` mode, `--min-pass` gate for CI.
+- `backend/test_verification.py` — 8 offline tests (sign determinism, tamper, revoke, not-found).
 
-### Phase 5 — Polish
-- Split `main.py` into blueprints (see task.txt middleware note); frontend designer panel with live `/renderPreview`; GitHub Actions CI; deploy (Render/Fly); README architecture diagram + demo GIF.
+## Next
+
+### Phase 5 — Ship
+- Publish real eval numbers (run `python -m evals.run_evals` against a live provider) in the README.
+- Swap the bulk daemon thread for a task queue (RQ/Celery) if batch sizes grow; today's thread is fine for classroom/event scale.
+- GitHub Actions CI (pytest + eval gate); deploy (Render/Fly); architecture diagram + demo GIF.
 
 ## Security note
 A leaked OpenAI key was removed from `backend/task.txt` — **revoke it** (platform.openai.com). The file is gitignored, so it was never pushed; no history rewrite needed.

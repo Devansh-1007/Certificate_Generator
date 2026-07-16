@@ -3,8 +3,9 @@ import { useAuth } from "../context/AuthContext";
 
 const features = [
   ["AI Template Designer", "Describe a certificate in plain English — an agent designs, validates, and previews it."],
-  ["One-click Generation", "Render certificates and ID cards to PNG + PDF, stored on S3-compatible storage."],
-  ["Verifiable", "Each certificate can embed a QR that resolves to a verification URL."],
+  ["Bulk from a roster", "Upload a CSV/Excel — an anomaly agent flags duplicates, casing and typos before you batch-render."],
+  ["Cryptographically verifiable", "Each certificate carries a signed QR; a public page confirms genuine, tampered, or revoked."],
+  ["One-click generation", "Render certificates and ID cards to PNG + PDF, stored on S3-compatible object storage."],
 ];
 
 const Home = () => {
@@ -35,7 +36,7 @@ const Home = () => {
           </Link>
         </div>
       </section>
-      <section className="grid gap-6 pb-24 sm:grid-cols-3">
+      <section className="grid gap-6 pb-24 sm:grid-cols-2 lg:grid-cols-4">
         {features.map(([title, body]) => (
           <div key={title} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <h3 className="mb-2 font-semibold text-slate-100">{title}</h3>
