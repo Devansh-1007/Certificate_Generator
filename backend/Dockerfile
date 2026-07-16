@@ -1,9 +1,12 @@
-FROM python:3.10.6-slim
-COPY . /app
+FROM python:3.11-slim
+
 WORKDIR /app
-RUN apt-get -y update && \
-  apt-get install -y python3-dev default-libmysqlclient-dev build-essential && \
-  pip install -r requirements.txt && \
-  apt-get clean && apt-get autoremove
-ENTRYPOINT python manage.py runserver 0.0.0.0:5000
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
+
+COPY . .
+
+# Render/Fly inject PORT; default 5000 for local docker run
+ENV PORT=5000
 EXPOSE 5000
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120 main:app

@@ -49,12 +49,16 @@
 - `backend/evals/` — ~30-prompt design eval set + `run_evals.py` scoring agent success / schema-valid / render-ok / layout-ok, writing `results/latest.{json,md}`; offline `--fake` mode, `--min-pass` gate for CI.
 - `backend/test_verification.py` — 8 offline tests (sign determinism, tamper, revoke, not-found).
 
-## Next
+### Phase 5 — Ship (done)
+- `.github/workflows/ci.yml` — pytest (45 tests) + eval gate (`--fake --min-pass 100`) on every push; frontend build check.
+- `backend/Dockerfile` — fixed (was Django `manage.py`!); gunicorn, PORT-aware for Render/Fly.
+- `DEPLOYMENT.md` — free-tier deploy: Render (backend Docker) + Aiven MySQL + R2 + Groq + Vercel (frontend, SPA rewrites).
 
-### Phase 5 — Ship
-- Publish real eval numbers (run `python -m evals.run_evals` against a live provider) in the README.
-- Swap the bulk daemon thread for a task queue (RQ/Celery) if batch sizes grow; today's thread is fine for classroom/event scale.
-- GitHub Actions CI (pytest + eval gate); deploy (Render/Fly); architecture diagram + demo GIF.
+## Backlog (nice-to-haves, post-ship)
+- Publish real eval numbers (run `python -m evals.run_evals` with the Groq key) in the README.
+- Swap the bulk daemon thread for RQ/Celery if batch sizes outgrow classroom/event scale.
+- Refresh-token flow (current JWTs simply expire at 12h); rate limiting on public /verify.
+- Architecture diagram + demo GIF in the README.
 
 ## Security note
 A leaked OpenAI key was removed from `backend/task.txt` — **revoke it** (platform.openai.com). The file is gitignored, so it was never pushed; no history rewrite needed.
