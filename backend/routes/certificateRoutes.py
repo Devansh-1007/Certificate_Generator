@@ -59,7 +59,8 @@ def generatecert():
         if template_name and template_name != "Classic Achievement":
             import json as _json
             from dataHandling import configureMySQL
-            cur = configureMySQL().cursor()
+            db = configureMySQL()  # keep the connection referenced, or it is GC'd mid-query (error 2055)
+            cur = db.cursor()
             cur.execute(
                 "SELECT TEMPLATE_JSON FROM TEMPLATE_DETAILS WHERE CLIENT_ID=%s AND TEMPLATE_NAME=%s",
                 (CURRENT_CLIENT, template_name),
