@@ -1,12 +1,18 @@
-name: CI
+name: CI/CD
 
 on:
   push:
     branches: [main]
   pull_request:
 
+concurrency:
+  # A newer push supersedes an in-flight run instead of racing it to production.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
+    name: Backend tests + agent evals
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -19,12 +25,20 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt pytest
-      - name: Unit tests (offline — no DB/network needed)
+      - name: Unit tests (offline — no DB, storage or network needed)
         run: pytest -q
-      - name: Eval harness gate (fake provider, validates the full agent pipeline)
+      - name: Agent eval gate (fake provider, full design pipeline)
         run: python -m evals.run_evals --fake --min-pass 1.0
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: backend/evals/results/
+          if-no-files-found: ignore
 
   frontend:
+    name: Frontend build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -39,4 +53,45 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
-          CI: "false"  # CRA treats warnings as errors with CI=true
+          CI: "false" # CRA treats warnings as errors under CI=true
+
+  deploy:
+    name: Deploy (main only, after checks pass)
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render backend deploy
+        # Add RENDER_DEPLOY_HOOK_URL in repo Settings > Secrets, and switch the
+        # Render service to "Deploy hook only" so untested code can't reach prod.
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" && echo "Render deploy triggered"
+          else
+            echo "RENDER_DEPLOY_HOOK_URL not set — relying on Render auto-deploy."
+          fi
+      - name: Trigger Vercel frontend deploy
+        run: |
+          if [ -n "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" ]; then
+            curl -fsSL -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" && echo "Vercel deploy triggered"
+          else
+            echo "VERCEL_DEPLOY_HOOK_URL not set — relying on Vercel auto-deploy."
+          fi
+
+  smoke:
+    name: Post-deploy smoke test
+    needs: [deploy]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for the new build, then check the API is serving
+        run: |
+          BASE="${{ secrets.BACKEND_URL }}"
+          if [ -z "$BASE" ]; then echo "BACKEND_URL not set — skipping smoke test."; exit 0; fi
+          sleep 90  # Render build + boot (free tier is slow to start)
+          for i in $(seq 1 10); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/apidocs/" || true)
+            if [ "$CODE" = "200" ]; then echo "API healthy (HTTP $CODE)"; exit 0; fi
+            echo "attempt $i: HTTP $CODE — retrying in 20s"; sleep 20
+          done
+          echo "API did not become healthy"; exit 1

@@ -7,7 +7,35 @@ Stack: **Render** (backend, Docker) · **Aiven** free MySQL · **Cloudflare R2**
 ```bash
 git push origin main
 ```
-CI (.github/workflows/ci.yml) runs 45 tests + the eval gate on every push.
+
+### CI/CD pipeline (.github/workflows/ci.yml)
+Every push to `main` runs, in order:
+
+| Job | What it does | Blocks deploy? |
+|---|---|---|
+| `backend` | 52 offline pytest cases + agent eval gate (`--fake --min-pass 1.0`); uploads the eval report as an artifact | yes |
+| `frontend` | production `npm run build` | yes |
+| `deploy` | POSTs the Render + Vercel deploy hooks (main branch only) | — |
+| `smoke` | waits for the new build, polls `/apidocs/` until it returns 200 | fails the run if prod is unhealthy |
+
+Pull requests run the two test jobs only — never deploy. `concurrency` cancels
+an in-flight run when a newer commit lands, so two builds can't race to prod.
+
+**Gating deploys on tests (recommended).** Out of the box Render and Vercel
+auto-deploy on push, which ships even when tests fail. To make deploys
+test-gated:
+
+1. Render → service → Settings → Build & Deploy → **Auto-Deploy: Off**, then
+   copy the **Deploy Hook** URL.
+2. Vercel → project → Settings → Git → **Ignored Build Step**: `exit 0` for hook-only,
+   and Settings → Git → Deploy Hooks → create one for `main`.
+3. GitHub → repo Settings → Secrets and variables → Actions → add:
+   - `RENDER_DEPLOY_HOOK_URL`
+   - `VERCEL_DEPLOY_HOOK_URL`
+   - `BACKEND_URL` (e.g. `https://certifyai-api.onrender.com`) for the smoke test
+
+If those secrets are absent the workflow simply logs that it's relying on the
+platforms' own auto-deploy — nothing breaks.
 
 ## 2. Database — Aiven free MySQL
 1. aiven.io → create free MySQL service → copy host/port/user/password.
