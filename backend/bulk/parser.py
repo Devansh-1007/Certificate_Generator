@@ -21,6 +21,31 @@ from rapidfuzz import fuzz
 # A near-duplicate is flagged when two distinct names score at/above this.
 NEAR_DUP_THRESHOLD = 88
 
+# Upload guards
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+MAX_ROWS = 2000
+
+# Common roster header wordings -> template placeholder. Matched on the
+# normalized key, so "Full Name", "full_name" and "FULLNAME" all hit the same entry.
+HEADER_ALIASES = {
+    "RECIPIENT_NAME": [
+        "name", "fullname", "full name", "candidatename", "participantname",
+        "studentname", "recipient", "recipientname", "attendee", "attendeename",
+        "employeename", "person", "awardee", "learner", "membername",
+    ],
+    "EVENT_NAME": [
+        "event", "eventname", "course", "coursename", "program", "programme",
+        "programname", "workshop", "training", "reason", "achievement", "activity",
+    ],
+    "ISSUE_DATE": [
+        "date", "issuedate", "issuedon", "dateofissue", "awardeddate",
+        "completiondate", "dateissued", "eventdate",
+    ],
+    "SIGNATORY_NAME": ["signatory", "signedby", "authorisedby", "authorizedby", "signature"],
+    "SIGNATORY_TITLE": ["designation", "title", "signatorytitle", "role", "position"],
+    "ORG_NAME": ["organisation", "organization", "org", "company", "institute", "institution", "college"],
+}
+
 
 class ParseError(Exception):
     """Raised when an uploaded file cannot be read as a table."""
@@ -37,16 +62,70 @@ def parse_table(filename, file_bytes):
     Supports .csv/.tsv (stdlib) and .xlsx (openpyxl, first sheet, row 1 = header).
     Blank rows are skipped. Raises ParseError on an unreadable or headerless file.
     """
+    if not file_bytes:
+        raise ParseError("The uploaded file is empty.")
+    if len(file_bytes) > MAX_UPLOAD_BYTES:
+        raise ParseError(
+            "File is larger than {} MB. Split the roster and upload in parts.".format(
+                MAX_UPLOAD_BYTES // (1024 * 1024)
+            )
+        )
+
     name = (filename or "").lower()
     if name.endswith((".xlsx", ".xlsm")):
         return _parse_xlsx(file_bytes)
-    if name.endswith(".tsv"):
-        return _parse_delimited(file_bytes, delimiter="\t")
-    if name.endswith(".csv") or not name:
-        return _parse_delimited(file_bytes, delimiter=",")
+    if name.endswith((".csv", ".tsv", ".txt")) or not name:
+        # Delimiter is sniffed, not assumed: Excel exports in many locales use
+        # ';', and '.csv' files are frequently tab- or pipe-separated.
+        return _parse_delimited(file_bytes)
     raise ParseError(
         "Unsupported file type '{}'. Upload a .csv, .tsv or .xlsx file.".format(name)
     )
+
+
+def _sniff_delimiter(text):
+    sample = "\n".join(text.splitlines()[:20])
+    try:
+        return csv.Sniffer().sniff(sample, delimiters=",;\t|").delimiter
+    except csv.Error:
+        # Sniffer fails on single-column files; fall back to the most frequent candidate.
+        counts = {d: sample.count(d) for d in [",", ";", "\t", "|"]}
+        best = max(counts, key=counts.get)
+        return best if counts[best] else ","
+
+
+def _find_header_row(rows_raw):
+    """
+    Locate the header row. Spreadsheets exported from event tools often carry a
+    title/blank/notes preamble, so the first non-empty row is not always the
+    header: pick the first row with >= 2 non-empty cells, else the first
+    non-empty row.
+    """
+    first_non_empty = None
+    for i, row in enumerate(rows_raw):
+        filled = [c for c in row if (c or "").strip()]
+        if not filled:
+            continue
+        if first_non_empty is None:
+            first_non_empty = i
+        if len(filled) >= 2:
+            return i
+    if first_non_empty is None:
+        raise ParseError("The file has no readable rows.")
+    return first_non_empty
+
+
+def _dedupe_headers(headers):
+    """'Name', 'Name' -> 'Name', 'Name_2' so later columns aren't silently lost."""
+    seen, out = {}, []
+    for h in headers:
+        h = (h or "").strip()
+        if not h:
+            out.append("")
+            continue
+        seen[h] = seen.get(h, 0) + 1
+        out.append(h if seen[h] == 1 else "{}_{}".format(h, seen[h]))
+    return out
 
 
 def _decode(file_bytes):
@@ -58,19 +137,23 @@ def _decode(file_bytes):
     raise ParseError("Could not decode the file — save it as UTF-8 and retry.")
 
 
-def _parse_delimited(file_bytes, delimiter):
+def _parse_delimited(file_bytes, delimiter=None):
     text = _decode(file_bytes)
-    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
-    rows_raw = [r for r in reader]
+    delimiter = delimiter or _sniff_delimiter(text)
+    try:
+        rows_raw = list(csv.reader(io.StringIO(text), delimiter=delimiter))
+    except csv.Error as e:
+        raise ParseError("Could not parse the file as a table: {}".format(e))
     if not rows_raw:
         raise ParseError("The file is empty.")
 
-    headers = [h.strip() for h in rows_raw[0]]
+    header_idx = _find_header_row(rows_raw)
+    headers = _dedupe_headers(rows_raw[header_idx])
     if not any(headers):
-        raise ParseError("The first row must contain column headers.")
+        raise ParseError("Could not find a header row with column names.")
 
     rows = []
-    for raw in rows_raw[1:]:
+    for raw in rows_raw[header_idx + 1:]:
         if not any((c or "").strip() for c in raw):
             continue  # skip fully blank rows
         row = {}
@@ -95,19 +178,21 @@ def _parse_xlsx(file_bytes):
         raise ParseError("Could not read the Excel file: {}".format(e))
 
     ws = wb.active
-    rows_iter = ws.iter_rows(values_only=True)
-    try:
-        header_row = next(rows_iter)
-    except StopIteration:
+    all_rows = [
+        ["" if c is None else str(c).strip() for c in raw]
+        for raw in ws.iter_rows(values_only=True)
+    ]
+    if not all_rows:
         raise ParseError("The spreadsheet is empty.")
 
-    headers = [("" if h is None else str(h)).strip() for h in header_row]
+    header_idx = _find_header_row(all_rows)
+    headers = _dedupe_headers(all_rows[header_idx])
     if not any(headers):
-        raise ParseError("The first row must contain column headers.")
+        raise ParseError("Could not find a header row with column names.")
 
     rows = []
-    for raw in rows_iter:
-        cells = ["" if c is None else str(c).strip() for c in raw]
+    for raw in all_rows[header_idx + 1:]:
+        cells = raw
         if not any(cells):
             continue
         row = {}
@@ -126,34 +211,97 @@ def _norm_key(s):
     return re.sub(r"[^a-z0-9]", "", (s or "").lower())
 
 
+_ALIAS_LOOKUP = {
+    _norm_key(alias): placeholder
+    for placeholder, aliases in HEADER_ALIASES.items()
+    for alias in aliases
+}
+
+# Below this fuzzy score a header is left unmapped rather than guessed wrongly.
+HEADER_MATCH_THRESHOLD = 82
+
+
+def match_header(header, placeholders):
+    """
+    Resolve one roster header to a placeholder.
+    Returns (placeholder|None, confidence 0-100, how) where `how` is
+    'exact' | 'alias' | 'fuzzy' | 'none' — surfaced in the UI so the user can
+    see (and override) what the importer decided.
+    """
+    key = _norm_key(header)
+    if not key:
+        return None, 0, "none"
+
+    norm_to_ph = {_norm_key(p): p for p in placeholders}
+    if key in norm_to_ph:
+        return norm_to_ph[key], 100, "exact"
+
+    alias_hit = _ALIAS_LOOKUP.get(key)
+    if alias_hit and alias_hit in placeholders:
+        return alias_hit, 95, "alias"
+
+    # Fuzzy: tolerate typos/extra words ("Candidate Full Name ", "Recipient-Name")
+    best, best_score = None, 0
+    for ph in placeholders:
+        score = fuzz.token_set_ratio(key, _norm_key(ph))
+        for alias in HEADER_ALIASES.get(ph, []):
+            score = max(score, fuzz.token_set_ratio(key, _norm_key(alias)))
+        if score > best_score:
+            best, best_score = ph, score
+    if best and best_score >= HEADER_MATCH_THRESHOLD:
+        return best, int(best_score), "fuzzy"
+    return None, int(best_score), "none"
+
+
 def map_rows(rows, placeholders, mapping=None):
     """
     Re-key each row from roster headers to template placeholder names.
 
-    `mapping` (optional) is an explicit {header: PLACEHOLDER} dict. Any header
-    not in the mapping is auto-matched to a placeholder by normalized name
-    (case/space/underscore-insensitive). Returns (mapped_rows, unmapped_placeholders).
+    `mapping` (optional) is an explicit {header: PLACEHOLDER} dict from the user
+    and always wins. Remaining headers are resolved by exact match, then a
+    synonym table, then fuzzy matching above a confidence floor.
+
+    Returns (mapped_rows, unmapped_placeholders, mapping_report) where the report
+    lists every source header with the placeholder it was mapped to, the
+    confidence and the method used.
     """
     mapping = mapping or {}
     placeholders = list(placeholders)
-    norm_to_ph = {_norm_key(p): p for p in placeholders}
-    explicit = {h: p for h, p in mapping.items()}
+
+    headers = []
+    for row in rows:
+        for h in row.keys():
+            if h not in headers:
+                headers.append(h)
+
+    resolved, report, taken = {}, [], set()
+    for header in headers:
+        if header in mapping and mapping[header]:
+            target, score, how = mapping[header], 100, "manual"
+        else:
+            target, score, how = match_header(header, placeholders)
+        # One placeholder can only be fed by one column; keep the stronger match.
+        if target and target in taken:
+            target, how = None, "duplicate_column"
+        if target:
+            taken.add(target)
+        resolved[header] = target
+        report.append({
+            "HEADER": header, "PLACEHOLDER": target,
+            "CONFIDENCE": score, "METHOD": how,
+        })
 
     mapped = []
-    used = set()
     for row in rows:
         out = {}
         for header, value in row.items():
-            target = explicit.get(header)
-            if not target:
-                target = norm_to_ph.get(_norm_key(header))
+            target = resolved.get(header)
             if target:
                 out[target] = value
-                used.add(target)
         mapped.append(out)
 
-    unmapped = [p for p in placeholders if p not in used]
-    return mapped, unmapped
+    unmapped = [p for p in placeholders if p not in taken]
+    return mapped, unmapped, report
 
 
 # --------------------------------------------------------------------------- #

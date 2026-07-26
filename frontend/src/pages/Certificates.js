@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import api from "../api/client";
+import { showError } from "../api/errors";
 
 const swalCfg = { background: "#0f172a", color: "#e2e8f0" };
 
@@ -56,7 +57,7 @@ const Certificates = () => {
       await api.post(`/${revoking ? "revoke" : "reinstate"}Certificate/${c.CERT_UID}`);
       load();
     } catch (err) {
-      Swal.fire({ icon: "error", title: "Failed", text: err.response?.data?.description || String(err), ...swalCfg });
+      showError(err, "Failed");
     }
   };
 

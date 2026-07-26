@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api/client";
+import { showError } from "../api/errors";
 
 const swalCfg = { background: "#0f172a", color: "#e2e8f0" };
 
@@ -28,7 +29,7 @@ const Templates = () => {
       const { data } = await api.post("/renderPreview", { TEMPLATE: t.TEMPLATE, DATA: {} });
       setPreview({ name: t.TEMPLATE_NAME, base64: data.BASE64 });
     } catch (err) {
-      Swal.fire({ icon: "error", title: "Preview failed", text: err.response?.data?.description || String(err), ...swalCfg });
+      showError(err, "Preview failed");
     } finally {
       setBusy(false);
     }
@@ -45,7 +46,7 @@ const Templates = () => {
       if (preview?.name === name) setPreview(null);
       load();
     } catch (err) {
-      Swal.fire({ icon: "error", title: "Delete failed", text: err.response?.data?.description || String(err), ...swalCfg });
+      showError(err, "Delete failed");
     }
   };
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Swal from "sweetalert2";
 import api from "../api/client";
+import { showError } from "../api/errors";
 
 const inputCls =
   "w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:border-amber-500 focus:outline-none";
@@ -24,13 +25,7 @@ const Register = () => {
       });
       setForm({ CLIENT_ID: "", CLIENT_NAME: "", PASSWORD: "" });
     } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Registration failed",
-        text: err.response?.data?.description || "Admin token required",
-        background: "#0f172a",
-        color: "#e2e8f0",
-      });
+      showError(err, "Registration failed");
     } finally {
       setBusy(false);
     }

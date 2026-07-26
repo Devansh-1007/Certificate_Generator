@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api/client";
+import { showError } from "../api/errors";
 
 const inputCls =
   "w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:border-amber-500 focus:outline-none";
@@ -41,13 +42,7 @@ const GenerateCertificate = () => {
       });
       setResult(data.CERTIFICATE_DETAILS);
     } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Generation failed",
-        text: err.response?.data?.description || String(err),
-        background: "#0f172a",
-        color: "#e2e8f0",
-      });
+      showError(err, "Generation failed");
     } finally {
       setBusy(false);
     }

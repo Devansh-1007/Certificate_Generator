@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import Swal from "sweetalert2";
 import api from "../api/client";
+import { errorMessage, showError } from "../api/errors";
+import Alert from "../components/Alert";
 
 const inputCls =
   "w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:border-amber-500 focus:outline-none";
@@ -15,9 +16,6 @@ const BADGE = {
   duplicate_near: ["bg-fuchsia-500/20 text-fuchsia-300", "near-dup"],
 };
 
-const swalErr = (text) =>
-  Swal.fire({ icon: "error", title: "Error", text, background: "#0f172a", color: "#e2e8f0" });
-
 const BulkGenerate = () => {
   const [templates, setTemplates] = useState([]);
   const [templateName, setTemplateName] = useState("Classic Achievement");
@@ -28,6 +26,7 @@ const BulkGenerate = () => {
   const [review, setReview] = useState(null); // upload response
   const [rows, setRows] = useState([]); // editable rows
   const [job, setJob] = useState(null); // polled job detail
+  const [error, setError] = useState(null); // inline banner (keeps context visible)
   const pollRef = useRef(null);
 
   useEffect(() => {
@@ -36,9 +35,30 @@ const BulkGenerate = () => {
   }, []);
 
   // ---- upload ----
+  const downloadRosterTemplate = async () => {
+    try {
+      const res = await api.get("/bulk/template", {
+        params: { TEMPLATE_NAME: templateName },
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `roster-template.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showError(err, "Couldn't download the template");
+    }
+  };
+
   const upload = async (e) => {
     e.preventDefault();
-    if (!file) return swalErr("Choose a CSV or Excel file first.");
+    setError(null);
+    if (!file) return setError("Choose a CSV, TSV or Excel file first.");
+    const ok = /\.(csv|tsv|txt|xlsx|xlsm)$/i.test(file.name);
+    if (!ok) return setError(`"${file.name}" isn't a supported format. Upload .csv, .tsv or .xlsx.`);
+    if (file.size > 5 * 1024 * 1024) return setError("File is larger than 5 MB — split the roster.");
     setBusy(true);
     try {
       const fd = new FormData();
@@ -51,7 +71,7 @@ const BulkGenerate = () => {
       setRows(data.SUGGESTED_ROWS.map((r) => ({ ...r }))); // start from cleaned rows
       setStep("review");
     } catch (err) {
-      swalErr(err.response?.data?.description || String(err));
+      setError(errorMessage(err, "Upload failed."));
     } finally {
       setBusy(false);
     }
@@ -80,7 +100,7 @@ const BulkGenerate = () => {
       setJob({ STATUS: "RENDERING", TOTAL: data.TOTAL, PROCESSED: 0, SUCCEEDED: 0, FAILED: 0 });
       pollRef.current = setInterval(poll, 1200);
     } catch (err) {
-      swalErr(err.response?.data?.description || String(err));
+      showError(err);
     } finally {
       setBusy(false);
     }
@@ -109,7 +129,7 @@ const BulkGenerate = () => {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      swalErr(err.response?.data?.description || "Download failed");
+      showError(err, "Download failed");
     }
   };
 
@@ -149,6 +169,12 @@ const BulkGenerate = () => {
       </div>
 
       {/* STEP 1 — upload */}
+      {error && (
+        <Alert kind="error" title="Couldn't process that file" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
       {step === "upload" && (
         <form onSubmit={upload} className="grid max-w-xl gap-4">
           <div>
@@ -168,10 +194,20 @@ const BulkGenerate = () => {
               onChange={(e) => setFile(e.target.files[0])}
               className="block w-full text-sm text-slate-400 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-500 file:px-4 file:py-2 file:font-semibold file:text-slate-950 hover:file:bg-amber-400"
             />
-            <p className="mt-2 text-xs text-slate-500">
-              Column headers should match template fields (e.g. <code className="text-slate-400">RECIPIENT_NAME</code>,
-              {" "}<code className="text-slate-400">EVENT_NAME</code>). Header matching is case-insensitive.
+            <p className="mt-2 text-xs leading-relaxed text-slate-500">
+              Accepts .csv, .tsv and .xlsx (max 5 MB, 2000 rows). The delimiter is detected
+              automatically (comma, semicolon, tab or pipe) and title rows above the header are skipped.
+              Columns are matched to template fields by name, common synonyms
+              (&ldquo;Full Name&rdquo;, &ldquo;Candidate&rdquo;, &ldquo;Course&rdquo;) and fuzzy matching —
+              you&rsquo;ll see exactly what matched on the next screen.
             </p>
+            <button
+              type="button"
+              onClick={downloadRosterTemplate}
+              className="mt-3 text-sm font-medium text-amber-400 hover:underline"
+            >
+              ↓ Download a ready-to-fill CSV for this template
+            </button>
           </div>
           <button disabled={busy} className="rounded-lg bg-amber-500 py-2.5 font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50">
             {busy ? "Analysing…" : "Upload & review"}
@@ -182,6 +218,43 @@ const BulkGenerate = () => {
       {/* STEP 2 — review */}
       {step === "review" && review && (
         <div>
+          {review.MAPPING_REPORT && review.MAPPING_REPORT.length > 0 && (
+            <div className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+              <h3 className="mb-3 text-sm font-semibold text-slate-200">Detected columns</h3>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {review.MAPPING_REPORT.map((m) => {
+                  const cls = !m.PLACEHOLDER
+                    ? "border-slate-700 bg-slate-800/60 text-slate-500"
+                    : m.METHOD === "exact" || m.METHOD === "manual"
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                    : "border-amber-500/40 bg-amber-500/10 text-amber-200";
+                  return (
+                    <span key={m.HEADER} className={`rounded-lg border px-2.5 py-1.5 ${cls}`}>
+                      <span className="font-mono">{m.HEADER}</span>
+                      {m.PLACEHOLDER ? (
+                        <>
+                          {" → "}
+                          <span className="font-mono">{m.PLACEHOLDER}</span>
+                          {m.METHOD !== "exact" && m.METHOD !== "manual" && (
+                            <span className="opacity-70"> ({m.METHOD} {m.CONFIDENCE}%)</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="opacity-70"> · ignored</span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+              {review.UNMAPPED && review.UNMAPPED.length > 0 && (
+                <p className="mt-3 text-xs text-amber-300/90">
+                  No column found for: <span className="font-mono">{review.UNMAPPED.join(", ")}</span> —
+                  these fall back to defaults on every certificate.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="mb-5 flex flex-wrap items-center gap-3">
             <span className="text-sm text-slate-300">
               {review.REPORT.total_rows} rows · {review.REPORT.anomaly_count} findings

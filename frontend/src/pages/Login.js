@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api/client";
+import { showError } from "../api/errors";
 import { useAuth } from "../context/AuthContext";
 
 const inputCls =
@@ -32,13 +33,7 @@ const Login = () => {
       }
       navigate("/dashboard");
     } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Login failed",
-        text: err.response?.data?.error || "Check your credentials",
-        background: "#0f172a",
-        color: "#e2e8f0",
-      });
+      showError(err, "Login failed");
     } finally {
       setBusy(false);
     }

@@ -80,17 +80,20 @@ def test_parse_xlsx_roundtrip():
 
 # ---------- column mapping ----------
 
-def test_map_rows_case_insensitive():
+def test_map_rows_alias_and_case_insensitive():
     rows = [{"full name": "Alice", "event name": "Expo"}]
-    mapped, unmapped = map_rows(rows, ["RECIPIENT_NAME", "EVENT_NAME", "ISSUE_DATE"])
-    # "full name" doesn't normalize to RECIPIENT_NAME, but "event name" -> EVENT_NAME
+    mapped, unmapped, report = map_rows(rows, ["RECIPIENT_NAME", "EVENT_NAME", "ISSUE_DATE"])
+    # "full name" resolves via the synonym table; "event name" by normalized match
+    assert mapped[0]["RECIPIENT_NAME"] == "Alice"
     assert mapped[0]["EVENT_NAME"] == "Expo"
-    assert "RECIPIENT_NAME" in unmapped
+    assert unmapped == ["ISSUE_DATE"]
+    methods = {r["HEADER"]: r["METHOD"] for r in report}
+    assert methods["full name"] == "alias" and methods["event name"] == "exact"
 
 
 def test_map_rows_explicit_mapping():
     rows = [{"Student": "Alice", "Award": "Gold"}]
-    mapped, unmapped = map_rows(
+    mapped, unmapped, _report = map_rows(
         rows, ["RECIPIENT_NAME", "EVENT_NAME"],
         mapping={"Student": "RECIPIENT_NAME", "Award": "EVENT_NAME"},
     )
@@ -100,7 +103,7 @@ def test_map_rows_explicit_mapping():
 
 def test_map_rows_normalized_header_match():
     rows = [{"Recipient_Name": "Alice"}]
-    mapped, _ = map_rows(rows, ["RECIPIENT_NAME"])
+    mapped, _unmapped, _report = map_rows(rows, ["RECIPIENT_NAME"])
     assert mapped[0]["RECIPIENT_NAME"] == "Alice"
 
 
@@ -173,3 +176,56 @@ def test_suggest_rows_applies_safe_fixes_only():
     assert any(a["type"] == "duplicate_exact" for a in report["anomalies"])
     # original untouched (suggest_rows returns a copy)
     assert rows[0]["RECIPIENT_NAME"] == "ALICE  SMITH "
+
+
+# ---------- robust parsing (real-world roster shapes) ----------
+
+def test_parses_semicolon_delimited_csv():
+    """European Excel exports use ';' — the delimiter is sniffed, not assumed."""
+    data = b"RECIPIENT_NAME;EVENT_NAME\nAlice Sharma;Expo\nRohan Mehta;Expo\n"
+    rows = parse_table("roster.csv", data)
+    assert len(rows) == 2 and rows[0]["RECIPIENT_NAME"] == "Alice Sharma"
+
+
+def test_parses_pipe_delimited_csv():
+    data = b"Name|Event\nAlice|Expo\n"
+    rows = parse_table("roster.csv", data)
+    assert rows[0]["Name"] == "Alice"
+
+
+def test_skips_preamble_before_header():
+    """Title/notes rows above the header must not be mistaken for columns."""
+    data = b"Annual Hackathon 2026\n\nRECIPIENT_NAME,EVENT_NAME\nAlice,Expo\n"
+    rows = parse_table("roster.csv", data)
+    assert len(rows) == 1 and rows[0]["RECIPIENT_NAME"] == "Alice"
+
+
+def test_duplicate_headers_are_disambiguated():
+    data = b"Name,Name\nAlice,Bob\n"
+    rows = parse_table("roster.csv", data)
+    assert rows[0]["Name"] == "Alice" and rows[0]["Name_2"] == "Bob"
+
+
+def test_rejects_oversized_file():
+    from bulk.parser import MAX_UPLOAD_BYTES
+    with pytest.raises(ParseError) as e:
+        parse_table("roster.csv", b"x" * (MAX_UPLOAD_BYTES + 1))
+    assert "larger than" in str(e.value)
+
+
+def test_fuzzy_header_match_and_threshold():
+    from bulk.parser import match_header
+    ph = ["RECIPIENT_NAME", "EVENT_NAME"]
+    target, score, how = match_header("Candidate Name", ph)
+    assert target == "RECIPIENT_NAME" and how in ("alias", "fuzzy")
+    # unrelated columns are left alone rather than force-mapped
+    target, _score, how = match_header("Phone Number", ph)
+    assert target is None and how == "none"
+
+
+def test_one_placeholder_per_column():
+    """Two columns matching the same placeholder: first wins, second flagged."""
+    rows = [{"Name": "Alice", "Full Name": "Alice S"}]
+    mapped, _unmapped, report = map_rows(rows, ["RECIPIENT_NAME"])
+    assert mapped[0]["RECIPIENT_NAME"] == "Alice"
+    assert any(r["METHOD"] == "duplicate_column" for r in report)

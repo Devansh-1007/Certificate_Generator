@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Swal from "sweetalert2";
 import api from "../api/client";
+import { showError } from "../api/errors";
 
 const swalCfg = { background: "#0f172a", color: "#e2e8f0" };
 
@@ -23,7 +24,7 @@ const TemplateDesigner = () => {
       const res = await api.post("/renderPreview", { TEMPLATE: data.TEMPLATE, DATA: {} });
       setPreview(res.data.BASE64);
     } catch (err) {
-      Swal.fire({ icon: "error", title: "Design failed", text: err.response?.data?.description || String(err), ...swalCfg });
+      showError(err, "Design failed");
     } finally {
       setBusy(false);
     }
@@ -34,7 +35,7 @@ const TemplateDesigner = () => {
       const { data } = await api.post("/saveTemplate", { TEMPLATE: template });
       Swal.fire({ icon: "success", title: "Template saved", text: data.TEMPLATE_NAME, ...swalCfg });
     } catch (err) {
-      Swal.fire({ icon: "error", title: "Save failed", text: err.response?.data?.description || String(err), ...swalCfg });
+      showError(err, "Save failed");
     }
   };
 

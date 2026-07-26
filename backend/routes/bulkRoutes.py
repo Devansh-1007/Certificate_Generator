@@ -9,16 +9,18 @@ POST /bulk/jobs/<id>/approve {"ROWS": [...]} -> start background render (maker-c
 GET  /bulk/jobs/<id>/download -> the rendered certificates as a zip
 """
 
+import re
 import json
 import logging
 
-from flask import Blueprint, request, jsonify, g, send_file
+from flask import Blueprint, request, jsonify, g, send_file, Response
 
 from middleware import require_client
 from dataHandling import configureMySQL
 from certificates import default_template
 from templateEngine import extract_placeholders
 from bulk import parse_table, map_rows, detect_anomalies, suggest_rows, ParseError
+from bulk.parser import MAX_ROWS
 from bulk.jobs import create_job, get_job, list_jobs, start_render
 
 logging.basicConfig(
@@ -83,7 +85,15 @@ def upload():
         return jsonify({"status": "Error", "description": "No data rows found in the file."}), 400
 
     placeholders = extract_placeholders(template)
-    mapped, unmapped = map_rows(rows, placeholders, mapping)
+    if len(rows) > MAX_ROWS:
+        return jsonify({
+            "status": "Error",
+            "description": "Roster has {} rows; the limit is {} per job. Split the file.".format(
+                len(rows), MAX_ROWS
+            ),
+        }), 413
+
+    mapped, unmapped, mapping_report = map_rows(rows, placeholders, mapping)
     name_field = _name_field(placeholders)
     report = detect_anomalies(mapped, name_field)
     suggested = suggest_rows(mapped, report)
@@ -99,11 +109,55 @@ def upload():
         "NAME_FIELD": name_field,
         "COLUMNS": list(rows[0].keys()),
         "PLACEHOLDERS": placeholders,
+        "MAPPING_REPORT": mapping_report,
         "UNMAPPED_PLACEHOLDERS": unmapped,
         "ROWS": mapped,
         "SUGGESTED_ROWS": suggested,
         "REPORT": report,
     })
+
+
+@bulk_bp.route("/bulk/template", methods=["GET"])
+@require_client
+def roster_template():
+    """
+    Download a ready-to-fill CSV for the chosen template: one column per
+    placeholder the design actually uses, plus two example rows. Removes the
+    guesswork about which columns the importer expects.
+    """
+    import csv as _csv
+    import io as _io
+
+    template = _resolve_template(g.client_id, request.args.get("TEMPLATE_NAME"))
+    if template is None:
+        return jsonify({"description": "Template not found"}), 404
+
+    placeholders = [p for p in extract_placeholders(template) if p != "VERIFY_URL"]
+    if not placeholders:
+        placeholders = ["RECIPIENT_NAME"]
+
+    samples = {
+        "RECIPIENT_NAME": ["Alice Sharma", "Rohan Mehta"],
+        "EVENT_NAME": ["Annual Hackathon 2026", "Annual Hackathon 2026"],
+        "ISSUE_DATE": ["15 July 2026", "15 July 2026"],
+        "SIGNATORY_NAME": ["Dr. A. Sharma", "Dr. A. Sharma"],
+        "SIGNATORY_TITLE": ["Director", "Director"],
+        "ORG_NAME": ["CertifyAI", "CertifyAI"],
+    }
+    buf = _io.StringIO()
+    writer = _csv.writer(buf)
+    writer.writerow(placeholders)
+    for i in range(2):
+        writer.writerow([samples.get(p, ["Example " + p.title()] * 2)[i] for p in placeholders])
+
+    filename = "roster-template-{}.csv".format(
+        re.sub(r"[^A-Za-z0-9]+", "-", template.get("name", "certificate")).strip("-").lower()
+    )
+    return Response(
+        buf.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=" + filename},
+    )
 
 
 @bulk_bp.route("/bulk/jobs", methods=["GET"])
