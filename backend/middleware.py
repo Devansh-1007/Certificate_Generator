@@ -19,6 +19,7 @@ import jwt as pyjwt
 
 from auth_jwt import decode_token
 from config import admin_token
+from tenancy import ROLE_RANK
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -30,6 +31,59 @@ def _bearer():
     if auth.startswith("Bearer "):
         return auth[7:]
     return request.headers.get("x-token")
+
+
+def _reject(message, code=401):
+    return jsonify({"description": message}), code
+
+
+def _claims_or_error():
+    """Decode the bearer token once; returns (claims, error_response)."""
+    token = _bearer()
+    if not token:
+        return None, _reject("Sign in to continue.")
+    try:
+        return decode_token(token), None
+    except pyjwt.ExpiredSignatureError:
+        return None, _reject("Session expired — sign in again.")
+    except pyjwt.InvalidTokenError:
+        return None, _reject("Invalid session token.")
+
+
+def require_member(minimum="member"):
+    """
+    Any signed-in member of an organisation. `minimum` raises the bar to
+    'admin' or 'owner'. The tenant is taken from the token, never the request,
+    so one organisation can't address another's data.
+    """
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            claims, error = _claims_or_error()
+            if error:
+                return error
+            org_id = claims.get("org")
+            if not org_id:
+                return _reject(
+                    "This account isn't linked to an organisation. Sign in again to refresh it.", 403
+                )
+            role = claims.get("role", "member")
+            if ROLE_RANK.get(role, -1) < ROLE_RANK.get(minimum, 0):
+                return _reject("This action needs {} access.".format(minimum), 403)
+
+            g.org_id = org_id
+            g.user_id = claims.get("sub")
+            g.role = role
+            g.email = claims.get("email")
+            g.org_name = claims.get("org_name")
+            # Legacy handlers still read g.client_id; the organisation is the
+            # tenant now, so point it at ORG_ID during the transition.
+            g.client_id = org_id
+            return f(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 def require_client(f):

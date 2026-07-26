@@ -17,6 +17,7 @@ from routes.bulkRoutes import bulk_bp
 from routes.verifyRoutes import verify_bp
 from routes.accountRoutes import account_bp
 from routes.adminRoutes import admin_bp
+from routes.authRoutes import auth_bp
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -57,6 +58,7 @@ app.register_blueprint(bulk_bp)
 app.register_blueprint(verify_bp)
 app.register_blueprint(account_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(auth_bp)
 
 
 if __name__ == "__main__":

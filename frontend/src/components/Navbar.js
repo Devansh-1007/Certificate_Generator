@@ -2,8 +2,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const Navbar = () => {
-  const { isAuthed, clientId, role, logout } = useAuth();
+  const { isAuthed, user, org, role, canAdminister, logout } = useAuth();
   const navigate = useNavigate();
+
+  const link = "text-slate-300 transition hover:text-white";
 
   return (
     <nav className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
@@ -11,37 +13,42 @@ const Navbar = () => {
         <Link to="/" className="font-display text-xl tracking-wide text-amber-400">
           Certify<span className="text-slate-100">AI</span>
         </Link>
+
         <div className="flex items-center gap-5 text-sm">
           {isAuthed ? (
             <>
-              <Link to="/dashboard" className="text-slate-300 hover:text-white">Dashboard</Link>
-              <Link to="/certificates" className="hidden text-slate-300 hover:text-white sm:inline">Certificates</Link>
-              <Link to="/templates" className="hidden text-slate-300 hover:text-white md:inline">Templates</Link>
-              <Link to="/bulk" className="text-slate-300 hover:text-white">Bulk</Link>
-              <Link to="/designer" className="text-slate-300 hover:text-white">Designer</Link>
-              {role === "admin" && (
+              {/* Every member can use the product — no dead-end links. */}
+              <Link to="/dashboard" className={link}>Dashboard</Link>
+              <Link to="/certificates" className={link}>Certificates</Link>
+              <Link to="/bulk" className={link}>Bulk</Link>
+              <Link to="/designer" className={link}>Designer</Link>
+              {canAdminister && (
                 <>
+                  <Link to="/team" className="text-amber-400 hover:text-amber-300">Team</Link>
                   <Link to="/admin" className="text-amber-400 hover:text-amber-300">Console</Link>
-                  <Link to="/register" className="text-amber-400 hover:text-amber-300">Register client</Link>
                 </>
               )}
               <span className="hidden rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400 sm:inline">
-                {clientId} · {role}
+                {org?.NAME || "Organisation"} · {role}
               </span>
               <button
                 onClick={() => { logout(); navigate("/"); }}
                 className="rounded-lg border border-slate-700 px-3 py-1.5 text-slate-300 hover:border-slate-500 hover:text-white"
+                title={user?.EMAIL}
               >
                 Sign out
               </button>
             </>
           ) : (
-            <Link
-              to="/login"
-              className="rounded-lg bg-amber-500 px-4 py-1.5 font-medium text-slate-950 hover:bg-amber-400"
-            >
-              Sign in
-            </Link>
+            <>
+              <Link to="/login" className={link}>Sign in</Link>
+              <Link
+                to="/signup"
+                className="rounded-lg bg-amber-500 px-4 py-1.5 font-medium text-slate-950 hover:bg-amber-400"
+              >
+                Start free
+              </Link>
+            </>
           )}
         </div>
       </div>

@@ -14,7 +14,7 @@ import logging
 
 from flask import Blueprint, request, jsonify, g
 
-from middleware import require_client
+from middleware import require_member
 from dataHandling import configureMySQL
 from templateEngine import validate_template, render_template, extract_placeholders
 from aiDesigner import design_template
@@ -28,7 +28,7 @@ templates_bp = Blueprint("templates", __name__)
 
 
 @templates_bp.route("/designTemplate", methods=["POST"])
-@require_client
+@require_member()
 def design():
     data = request.get_json() or {}
     prompt = data.get("PROMPT", "").strip()
@@ -65,7 +65,7 @@ def design():
 
 
 @templates_bp.route("/renderPreview", methods=["POST"])
-@require_client
+@require_member()
 def preview():
     data = request.get_json() or {}
     template = data.get("TEMPLATE")
@@ -90,7 +90,7 @@ def preview():
 
 
 @templates_bp.route("/saveTemplate", methods=["POST"])
-@require_client
+@require_member()
 def save():
     data = request.get_json() or {}
     template = data.get("TEMPLATE")
@@ -105,12 +105,12 @@ def save():
     mydb = configureMySQL()
     cursor = mydb.cursor()
     sql = (
-        "INSERT INTO TEMPLATE_DETAILS (`CLIENT_ID`,`TEMPLATE_NAME`,`TEMPLATE_JSON`,`CREATED_BY`,`UPDATED_BY`,`UPDATED_ON`) "
-        "VALUES (%s,%s,%s,%s,%s,NOW()) "
+        "INSERT INTO TEMPLATE_DETAILS (`CLIENT_ID`,`ORG_ID`,`TEMPLATE_NAME`,`TEMPLATE_JSON`,`CREATED_BY`,`UPDATED_BY`,`UPDATED_ON`) "
+        "VALUES (%s,%s,%s,%s,%s,%s,NOW()) "
         "ON DUPLICATE KEY UPDATE TEMPLATE_JSON=VALUES(TEMPLATE_JSON), UPDATED_BY=VALUES(UPDATED_BY), UPDATED_ON=NOW()"
     )
     try:
-        cursor.execute(sql, (client, template["name"], json.dumps(template), client, client))
+        cursor.execute(sql, (client, g.org_id, template["name"], json.dumps(template), client, client))
         mydb.commit()
         logging.info("Template '%s' saved for client '%s'", template["name"], client)
         return jsonify({"status": "Success", "TEMPLATE_NAME": template["name"]})
@@ -120,13 +120,13 @@ def save():
 
 
 @templates_bp.route("/templates", methods=["GET"])
-@require_client
+@require_member()
 def list_templates():
     mydb = configureMySQL()
     cursor = mydb.cursor()
     cursor.execute(
-        "SELECT TEMPLATE_NAME, TEMPLATE_JSON, UPDATED_ON FROM TEMPLATE_DETAILS WHERE CLIENT_ID = %s",
-        (g.client_id,),
+        "SELECT TEMPLATE_NAME, TEMPLATE_JSON, UPDATED_ON FROM TEMPLATE_DETAILS WHERE ORG_ID = %s",
+        (g.org_id,),
     )
     rows = cursor.fetchall()
     return jsonify({

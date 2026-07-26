@@ -1,32 +1,63 @@
 import { createContext, useContext, useState } from "react";
 
+/**
+ * Session state for the multi-tenant app.
+ *
+ * Every signed-in user belongs to exactly one organisation and can use the
+ * product; `role` (owner / admin / member) only gates organisation
+ * administration, so the UI hides settings rather than showing actions that
+ * would be rejected.
+ */
 const AuthContext = createContext(null);
 
-const readStore = () => ({
-  token: localStorage.getItem("cg_token"),
-  clientId: localStorage.getItem("cg_client"),
-  role: localStorage.getItem("cg_role"),
-});
+const KEYS = ["cg_token", "cg_user", "cg_org"];
+
+const read = () => {
+  try {
+    return {
+      token: localStorage.getItem("cg_token"),
+      user: JSON.parse(localStorage.getItem("cg_user") || "null"),
+      org: JSON.parse(localStorage.getItem("cg_org") || "null"),
+    };
+  } catch {
+    return { token: null, user: null, org: null };
+  }
+};
 
 export const AuthProvider = ({ children }) => {
-  const [auth, setAuth] = useState(readStore());
+  const [state, setState] = useState(read);
 
-  const login = (token, clientId, role) => {
-    localStorage.setItem("cg_token", token);
-    localStorage.setItem("cg_client", clientId);
-    localStorage.setItem("cg_role", role || "client");
-    setAuth(readStore());
+  const login = ({ access_token, USER, ORGANISATION }) => {
+    localStorage.setItem("cg_token", access_token);
+    localStorage.setItem("cg_user", JSON.stringify(USER || null));
+    localStorage.setItem("cg_org", JSON.stringify(ORGANISATION || null));
+    setState(read());
   };
 
   const logout = () => {
-    localStorage.removeItem("cg_token");
-    localStorage.removeItem("cg_client");
-    localStorage.removeItem("cg_role");
-    setAuth(readStore());
+    KEYS.forEach((k) => localStorage.removeItem(k));
+    setState(read());
   };
 
+  const setOrg = (org) => {
+    localStorage.setItem("cg_org", JSON.stringify(org));
+    setState(read());
+  };
+
+  const role = state.user?.ROLE || "member";
   return (
-    <AuthContext.Provider value={{ ...auth, isAuthed: !!auth.token, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        role,
+        isAuthed: !!state.token,
+        canAdminister: role === "owner" || role === "admin",
+        isOwner: role === "owner",
+        login,
+        logout,
+        setOrg,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

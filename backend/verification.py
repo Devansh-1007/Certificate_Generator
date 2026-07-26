@@ -72,9 +72,9 @@ def create_record(client_id, recipient, event, issue_date):
         cur = db.cursor()
         cur.execute(
             "INSERT INTO CERTIFICATE_VERIFY "
-            "(`CERT_UID`,`CLIENT_ID`,`RECIPIENT_NAME`,`EVENT_NAME`,`ISSUE_DATE`,"
-            "`SIGNATURE`,`STATUS`) VALUES (%s,%s,%s,%s,%s,%s,'VALID')",
-            (uid, client_id, recipient, event, issue_date, signature),
+            "(`CERT_UID`,`CLIENT_ID`,`ORG_ID`,`RECIPIENT_NAME`,`EVENT_NAME`,`ISSUE_DATE`,"
+            "`SIGNATURE`,`STATUS`) VALUES (%s,%s,%s,%s,%s,%s,%s,'VALID')",
+            (uid, client_id, client_id, recipient, event, issue_date, signature),
         )
         db.commit()
     except Exception as e:  # noqa: BLE001 - storage optional in local dev

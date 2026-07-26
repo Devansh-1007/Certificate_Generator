@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify, send_file, g
 from flasgger import swag_from
 
 from config import bucket, allIdImgPath, allIdPdfPath
-from middleware import require_client
+from middleware import require_member
 from models import Client, IdCard
 from idCard import generateID
 from awsS3 import downloadFile
@@ -23,7 +23,7 @@ id_bp = Blueprint("ids", __name__)
 
 @id_bp.route("/generateId", methods=["POST"])
 @swag_from(swagger_doc("generate_id.yaml"))
-@require_client
+@require_member()
 def generateId():
     try:
         data = request.get_json()
@@ -60,7 +60,7 @@ def generateId():
 
 @id_bp.route("/getId", methods=["GET"])
 @swag_from(swagger_doc("get_id.yaml"))
-@require_client
+@require_member()
 def getId():
     ID_NAME = request.args.get("ID_NAME")
     EXTENSION = request.args.get("EXTENSION")
@@ -84,7 +84,7 @@ def getId():
 
 
 @id_bp.route("/idCards", methods=["GET"])
-@require_client
+@require_member()
 def list_id_cards():
     """List this client's ID cards (name + created date) for the ID cards page."""
     from dataHandling import configureMySQL
@@ -92,8 +92,8 @@ def list_id_cards():
         db = configureMySQL()
         cur = db.cursor()
         cur.execute(
-            "SELECT ID_NAME, CREATED_ON FROM ID_DETAILS WHERE CLIENT_ID=%s ORDER BY CREATED_ON DESC",
-            (g.client_id,),
+            "SELECT ID_NAME, CREATED_ON FROM ID_DETAILS WHERE ORG_ID=%s ORDER BY CREATED_ON DESC",
+            (g.org_id,),
         )
         rows = cur.fetchall()
         return jsonify({
@@ -106,9 +106,9 @@ def list_id_cards():
 
 @id_bp.route("/getAllId", methods=["GET"])
 @swag_from(swagger_doc("get_AllId.yaml"))
-@require_client
+@require_member()
 def getAllId():
     try:
-        return jsonify({"base64_data_list": getAllFile("ID_DETAILS")})
+        return jsonify({"base64_data_list": getAllFile("ID_DETAILS", g.org_id)})
     except Exception as error:
         return jsonify({"description": "Failed to retrieve files", "error": str(error)}), 500

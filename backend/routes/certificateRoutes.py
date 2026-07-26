@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify, send_file, g
 from flasgger import swag_from
 
 from config import bucket, allCertImgPath, allCertPdfPath, base_url
-from middleware import require_client
+from middleware import require_member
 from models import Client, Certificate
 from certificates import generateCert
 from awsS3 import downloadFile
@@ -28,7 +28,7 @@ certificate_bp = Blueprint("certificates", __name__)
 
 @certificate_bp.route("/generateCertificate", methods=["POST"])
 @swag_from(swagger_doc("generate_certificate.yaml"))
-@require_client
+@require_member()
 def generatecert():
     try:
         data = request.get_json()
@@ -101,7 +101,7 @@ def generatecert():
 
 @certificate_bp.route("/getCertificate", methods=["GET"])
 @swag_from(swagger_doc("get_certificate.yaml"))
-@require_client
+@require_member()
 def getCert():
     CERTIFICATE_NAME = request.args.get("CERT_UID") or request.args.get("CERTIFICATE_NAME")
     EXTENSION = request.args.get("EXTENSION")
@@ -126,16 +126,16 @@ def getCert():
 
 @certificate_bp.route("/getAllCertificate", methods=["GET"])
 @swag_from(swagger_doc("get_AllCertificate.yaml"))
-@require_client
+@require_member()
 def getAllCert():
     try:
-        return jsonify({"base64_data_list": getAllFile("CERTIFICATE_DETAILS")})
+        return jsonify({"base64_data_list": getAllFile("CERTIFICATE_DETAILS", g.org_id)})
     except Exception as error:
         return jsonify({"description": "Failed to retrieve files", "error": str(error)}), 500
 
 
 @certificate_bp.route("/getCertificateDesigns", methods=["GET"])
-@require_client
+@require_member()
 def getCertDesign():
     try:
         return jsonify({"base64_data_list": getCertificateDesigns("CERTIFICATE_DESIGNS")})

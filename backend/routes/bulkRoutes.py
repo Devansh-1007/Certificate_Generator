@@ -15,7 +15,7 @@ import logging
 
 from flask import Blueprint, request, jsonify, g, send_file, Response
 
-from middleware import require_client
+from middleware import require_member
 from dataHandling import configureMySQL
 from certificates import default_template
 from templateEngine import extract_placeholders
@@ -55,7 +55,7 @@ def _name_field(placeholders):
 
 
 @bulk_bp.route("/bulk/upload", methods=["POST"])
-@require_client
+@require_member()
 def upload():
     if "file" not in request.files:
         return jsonify({"description": "Upload a file under form field 'file'."}), 400
@@ -118,7 +118,7 @@ def upload():
 
 
 @bulk_bp.route("/bulk/template", methods=["GET"])
-@require_client
+@require_member()
 def roster_template():
     """
     Download a ready-to-fill CSV for the chosen template: one column per
@@ -161,7 +161,7 @@ def roster_template():
 
 
 @bulk_bp.route("/bulk/jobs", methods=["GET"])
-@require_client
+@require_member()
 def jobs():
     rows = list_jobs(g.client_id)
     for r in rows:
@@ -172,7 +172,7 @@ def jobs():
 
 
 @bulk_bp.route("/bulk/jobs/<int:job_id>", methods=["GET"])
-@require_client
+@require_member()
 def job_detail(job_id):
     job = get_job(g.client_id, job_id)
     if not job:
@@ -184,7 +184,7 @@ def job_detail(job_id):
 
 
 @bulk_bp.route("/bulk/jobs/<int:job_id>/approve", methods=["POST"])
-@require_client
+@require_member()
 def approve(job_id):
     job = get_job(g.client_id, job_id)
     if not job:
@@ -207,7 +207,7 @@ def approve(job_id):
 
 
 @bulk_bp.route("/bulk/jobs/<int:job_id>/download", methods=["GET"])
-@require_client
+@require_member()
 def download(job_id):
     job = get_job(g.client_id, job_id)
     if not job:

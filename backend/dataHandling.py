@@ -101,7 +101,7 @@ def insertCertificate(CERTIFICATE, Client, TABLE):
     if request.method == "POST":
         mydb = configureMySQL()
         cursor = mydb.cursor()
-        sql = "INSERT INTO {0} (`CERTIFICATE_NAME`,`CERTIFICATE_IMG_PATH`,`CREATED_BY`,`UPDATED_BY`, `CERTIFICATE_PDF_PATH`, `UPDATED_ON`,`CLIENT_ID`,`BASE64`) VALUES (%s,%s,%s,%s,%s, NOW(),%s,%s)".format(
+        sql = "INSERT INTO {0} (`CERTIFICATE_NAME`,`CERTIFICATE_IMG_PATH`,`CREATED_BY`,`UPDATED_BY`, `CERTIFICATE_PDF_PATH`, `UPDATED_ON`,`CLIENT_ID`,`ORG_ID`,`BASE64`) VALUES (%s,%s,%s,%s,%s, NOW(),%s,%s,%s)".format(
             TABLE
         )
         values = (
@@ -111,6 +111,7 @@ def insertCertificate(CERTIFICATE, Client, TABLE):
             Client.CLIENT_ID,
             CERTIFICATE.CERTIFICATE_PDF_PATH,
             Client.CLIENT_ID,
+            Client.CLIENT_ID,   # ORG_ID — the tenant that owns this row
             CERTIFICATE.CERTIFICATE_BASE64,
         )
 
@@ -194,12 +195,17 @@ def getIDInfo(COLUMN, ID_NAME, TABLE):
     return None
 
 
-def getAllFile(TABLE):
+def getAllFile(TABLE, ORG_ID=None):
+    """Rows for one tenant. ORG_ID is required in practice; callers pass g.org_id."""
     mydb = configureMySQL()
     cursor = mydb.cursor()
     sql = "SELECT BASE64 FROM {0}".format(TABLE)
+    params = ()
+    if ORG_ID:
+        sql += " WHERE ORG_ID = %s"
+        params = (ORG_ID,)
     try:
-        cursor.execute(sql)
+        cursor.execute(sql, params)
         results = cursor.fetchall()
         mydb.commit()
 

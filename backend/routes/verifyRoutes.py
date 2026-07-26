@@ -14,7 +14,7 @@ import logging
 
 from flask import Blueprint, jsonify, g
 
-from middleware import require_client
+from middleware import require_member
 import verification
 
 logging.basicConfig(
@@ -32,7 +32,7 @@ def verify(uid):
 
 
 @verify_bp.route("/myCertificates", methods=["GET"])
-@require_client
+@require_member()
 def my_certificates():
     try:
         records = verification.list_records(g.client_id)
@@ -46,7 +46,7 @@ def my_certificates():
 
 
 @verify_bp.route("/revokeCertificate/<uid>", methods=["POST"])
-@require_client
+@require_member()
 def revoke(uid):
     ok = verification.set_status(g.client_id, uid, "REVOKED")
     if not ok:
@@ -55,7 +55,7 @@ def revoke(uid):
 
 
 @verify_bp.route("/reinstateCertificate/<uid>", methods=["POST"])
-@require_client
+@require_member()
 def reinstate(uid):
     ok = verification.set_status(g.client_id, uid, "VALID")
     if not ok:

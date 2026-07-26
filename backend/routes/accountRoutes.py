@@ -9,7 +9,7 @@ import logging
 
 from flask import Blueprint, jsonify, g
 
-from middleware import require_client
+from middleware import require_member
 from dataHandling import configureMySQL
 
 logging.basicConfig(
@@ -28,7 +28,7 @@ def _count(cur, table, client_id):
 
 
 @account_bp.route("/stats", methods=["GET"])
-@require_client
+@require_member()
 def stats():
     try:
         db = configureMySQL()
@@ -49,7 +49,7 @@ def stats():
 
 
 @account_bp.route("/templates/<name>", methods=["DELETE"])
-@require_client
+@require_member()
 def delete_template(name):
     try:
         db = configureMySQL()

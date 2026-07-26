@@ -34,7 +34,11 @@ def _secret():
     return secret
 
 
-def issue_token(sub, name="", role="client", ttl_hours=DEFAULT_TTL_HOURS):
+def issue_token(sub, name="", role="client", ttl_hours=DEFAULT_TTL_HOURS, **claims):
+    """
+    Mint a token. Extra claims (org, org_name, plan, email) let the API scope
+    every request to a tenant without a database round-trip per call.
+    """
     now = datetime.datetime.now(datetime.timezone.utc)
     payload = {
         "sub": sub,
@@ -43,6 +47,7 @@ def issue_token(sub, name="", role="client", ttl_hours=DEFAULT_TTL_HOURS):
         "iat": now,
         "exp": now + datetime.timedelta(hours=ttl_hours),
     }
+    payload.update({k: v for k, v in claims.items() if v is not None})
     return pyjwt.encode(payload, _secret(), algorithm=ALGORITHM)
 
 
