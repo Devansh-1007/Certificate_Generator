@@ -20,7 +20,10 @@ const Navbar = () => {
               <Link to="/bulk" className="text-slate-300 hover:text-white">Bulk</Link>
               <Link to="/designer" className="text-slate-300 hover:text-white">Designer</Link>
               {role === "admin" && (
-                <Link to="/register" className="text-amber-400 hover:text-amber-300">Register client</Link>
+                <>
+                  <Link to="/admin" className="text-amber-400 hover:text-amber-300">Console</Link>
+                  <Link to="/register" className="text-amber-400 hover:text-amber-300">Register client</Link>
+                </>
               )}
               <span className="hidden rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400 sm:inline">
                 {clientId} · {role}

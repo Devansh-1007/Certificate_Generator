@@ -14,6 +14,7 @@ import IdCards from "./pages/IdCards";
 import Certificates from "./pages/Certificates";
 import Templates from "./pages/Templates";
 import TemplateDesigner from "./pages/TemplateDesigner";
+import AdminConsole from "./pages/AdminConsole";
 import Verify from "./pages/Verify";
 
 const App = () => (
@@ -25,6 +26,7 @@ const App = () => (
         <Route path="/login" element={<Login />} />
         <Route path="/verify/:id" element={<Verify />} />
         <Route path="/register" element={<ProtectedRoute adminOnly><Register /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute adminOnly><AdminConsole /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/generate-certificate" element={<ProtectedRoute><GenerateCertificate /></ProtectedRoute>} />
         <Route path="/certificates" element={<ProtectedRoute><Certificates /></ProtectedRoute>} />

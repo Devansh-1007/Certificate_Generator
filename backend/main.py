@@ -16,6 +16,7 @@ from routes.templateRoutes import templates_bp
 from routes.bulkRoutes import bulk_bp
 from routes.verifyRoutes import verify_bp
 from routes.accountRoutes import account_bp
+from routes.adminRoutes import admin_bp
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -44,6 +45,10 @@ app.config["SWAGGER"] = {
 swagger = Swagger(app)
 CORS(app)
 
+# Request timing/error telemetry for the admin console (in-process, bounded).
+import metrics
+metrics.install(app)
+
 app.register_blueprint(client_bp)
 app.register_blueprint(certificate_bp)
 app.register_blueprint(id_bp)
@@ -51,6 +56,7 @@ app.register_blueprint(templates_bp)
 app.register_blueprint(bulk_bp)
 app.register_blueprint(verify_bp)
 app.register_blueprint(account_bp)
+app.register_blueprint(admin_bp)
 
 
 if __name__ == "__main__":
