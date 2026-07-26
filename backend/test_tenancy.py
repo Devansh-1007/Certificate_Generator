@@ -152,3 +152,74 @@ def test_can_demote_owner_when_another_exists(monkeypatch):
     cur = _FakeCursor([("owner",), (2,)])
     monkeypatch.setattr(tenancy, "configureMySQL", lambda: _FakeDB(cur))
     assert tenancy.update_member("org-1", "user-1", role="admin") is True
+
+
+# ---------- work-email policy ----------
+
+from tenancy import is_public_email_domain, email_domain  # noqa: E402
+
+
+@pytest.mark.parametrize("email", [
+    "a@gmail.com", "a@yahoo.co.in", "a@outlook.com", "a@icloud.com", "a@protonmail.com",
+])
+def test_consumer_domains_are_recognised(email):
+    assert is_public_email_domain(email) is True
+
+
+@pytest.mark.parametrize("email", ["dev@acme.com", "dev@iitbhu.ac.in", "x@sciforn.io"])
+def test_work_domains_are_allowed(email):
+    assert is_public_email_domain(email) is False
+
+
+def test_email_domain_extraction():
+    assert email_domain("Dev.Choudhary@Acme.COM") == "acme.com"
+
+
+def test_org_creation_rejects_consumer_email_when_policy_on():
+    with pytest.raises(TenancyError) as e:
+        validate_signup("someone@gmail.com", "longenough", "Acme", require_work_email=True)
+    assert "work email" in str(e.value)
+
+
+def test_org_creation_allows_consumer_email_when_policy_off():
+    validate_signup("someone@gmail.com", "longenough", "Acme", require_work_email=False)
+
+
+def test_work_email_policy_reads_env(monkeypatch):
+    from tenancy import work_email_required
+
+    monkeypatch.delenv("REQUIRE_WORK_EMAIL", raising=False)
+    assert work_email_required() is True          # secure default
+    monkeypatch.setenv("REQUIRE_WORK_EMAIL", "false")
+    assert work_email_required() is False
+
+
+# ---------- google identity resolution ----------
+
+def test_domain_join_ignores_consumer_domains():
+    """Two strangers on gmail.com must never be pooled into one tenant."""
+    from tenancy import find_org_for_domain
+
+    class Cur:
+        def execute(self, *a, **k):
+            raise AssertionError("should not query for a consumer domain")
+
+    assert find_org_for_domain(Cur(), "gmail.com") is None
+
+
+def test_google_token_verification_requires_configuration(monkeypatch):
+    import oauth_google
+
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    assert oauth_google.is_configured() is False
+    with pytest.raises(oauth_google.GoogleAuthError) as e:
+        oauth_google.verify_id_token("anything")
+    assert "not configured" in str(e.value)
+
+
+def test_google_rejects_missing_credential(monkeypatch):
+    import oauth_google
+
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client-id")
+    with pytest.raises(oauth_google.GoogleAuthError):
+        oauth_google.verify_id_token("")

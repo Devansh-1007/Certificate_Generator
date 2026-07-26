@@ -20,6 +20,7 @@ import logging
 from flask import Blueprint, request, jsonify, g
 
 import tenancy
+import oauth_google
 from tenancy import TenancyError
 from auth_jwt import issue_token
 from middleware import require_member
@@ -57,6 +58,42 @@ def _session_payload(user):
             "SLUG": user.get("ORG_SLUG"), "PLAN": user.get("PLAN", "free"),
         },
     }
+
+
+@auth_bp.route("/auth/config", methods=["GET"])
+def config():
+    """Public: lets the sign-in page render the right options for this deployment."""
+    return jsonify({
+        "GOOGLE_ENABLED": oauth_google.is_configured(),
+        "GOOGLE_CLIENT_ID": oauth_google.client_id(),
+        "REQUIRE_WORK_EMAIL": tenancy.work_email_required(),
+    })
+
+
+@auth_bp.route("/auth/google", methods=["POST"])
+def google_signin():
+    """
+    Exchange a Google ID token for a session. One endpoint covers sign-up and
+    sign-in: the outcome tells the client what happened so the UI can explain
+    it ("joined Acme Inc" vs "created Acme Inc").
+    """
+    data = request.get_json() or {}
+    try:
+        identity = oauth_google.verify_id_token(data.get("CREDENTIAL"))
+    except oauth_google.GoogleAuthError as e:
+        return jsonify({"description": str(e)}), 401
+
+    try:
+        user, outcome = tenancy.sign_in_with_google(identity, org_name=data.get("ORG_NAME"))
+    except TenancyError as e:
+        return jsonify({"description": str(e)}), 400
+    except Exception as e:  # noqa: BLE001
+        logging.error("Google sign-in failed for %s: %s", identity.get("email"), e)
+        return jsonify({"description": "Could not complete Google sign-in."}), 503
+
+    payload = _session_payload(user)
+    payload["OUTCOME"] = outcome
+    return jsonify(payload), (201 if outcome == "created" else 200)
 
 
 @auth_bp.route("/auth/signup", methods=["POST"])

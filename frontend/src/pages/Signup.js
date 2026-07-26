@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../api/client";
 import { errorMessage } from "../api/errors";
 import Alert from "../components/Alert";
+import GoogleButton from "../components/GoogleButton";
 import { useAuth } from "../context/AuthContext";
 
 const inputCls =
@@ -42,6 +43,18 @@ const Signup = () => {
 
       {error && <Alert kind="error" onClose={() => setError(null)}>{error}</Alert>}
 
+      {/* Google users skip the password entirely; the org name below is used if
+          their domain doesn't already belong to an organisation. */}
+      <GoogleButton
+        text="signup_with"
+        orgName={form.ORG_NAME}
+        onSuccess={(data) => {
+          login(data);
+          navigate("/dashboard");
+        }}
+        onError={(err) => setError(errorMessage(err, "Google sign-up failed."))}
+      />
+
       <form onSubmit={submit} className="space-y-4">
         <div>
           <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">Organisation *</label>
@@ -56,6 +69,10 @@ const Signup = () => {
           <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">Work email *</label>
           <input required type="email" className={inputCls} placeholder="you@organisation.com"
                  value={form.EMAIL} onChange={set("EMAIL")} />
+          <p className="mt-1 text-xs text-slate-500">
+            Use your work domain — colleagues who sign up with the same domain join
+            this organisation automatically instead of creating a duplicate.
+          </p>
         </div>
         <div>
           <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">Password *</label>

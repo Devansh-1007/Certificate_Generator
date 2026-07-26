@@ -31,6 +31,35 @@ ROLE_RANK = {"member": 0, "admin": 1, "owner": 2}
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
 
+# Consumer mailbox providers. Organisations are keyed to a work domain, so a
+# personal address must not claim one — otherwise every gmail.com user would
+# pool into a single tenant.
+PUBLIC_EMAIL_DOMAINS = {
+    "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.in", "yahoo.co.uk",
+    "outlook.com", "hotmail.com", "live.com", "msn.com", "icloud.com", "me.com",
+    "proton.me", "protonmail.com", "aol.com", "mail.com", "yandex.com",
+    "zoho.com", "gmx.com", "rediffmail.com", "inbox.com", "fastmail.com",
+    "legacy.local",
+}
+
+
+def email_domain(email):
+    return (email or "").strip().lower().rpartition("@")[2]
+
+
+def is_public_email_domain(email):
+    return email_domain(email) in PUBLIC_EMAIL_DOMAINS
+
+
+def work_email_required():
+    """
+    Whether organisation creation demands a work address. Defaults to on;
+    set REQUIRE_WORK_EMAIL=false for demos where personal accounts are fine.
+    """
+    import os
+
+    return os.getenv("REQUIRE_WORK_EMAIL", "true").strip().lower() not in ("false", "0", "no")
+
 
 class TenancyError(Exception):
     """Domain error with a message that is safe to show the user."""
@@ -41,9 +70,15 @@ def slugify(value):
     return slug[:60] or "org"
 
 
-def validate_signup(email, password, org_name):
+def validate_signup(email, password, org_name, require_work_email=False):
     if not EMAIL_RE.match((email or "").strip()):
         raise TenancyError("Enter a valid email address.")
+    if require_work_email and is_public_email_domain(email):
+        raise TenancyError(
+            "Use your work email to create an organisation — {} addresses can't "
+            "claim a company domain. You can still be invited to an existing "
+            "organisation with this address.".format(email_domain(email))
+        )
     if len(password or "") < 8:
         raise TenancyError("Password must be at least 8 characters.")
     if len((org_name or "").strip()) < 2:
@@ -61,12 +96,19 @@ def _unique_slug(cur, base):
         slug = "{}-{}".format(base[:55], n)
 
 
-def create_organisation(org_name, email, password, full_name=None):
+def create_organisation(org_name, email, password, full_name=None,
+                        provider="password", google_sub=None, avatar_url=None,
+                        email_verified=False):
     """
-    Self-serve signup: creates the organisation and its first user (owner)
-    in one transaction. Returns the new user record.
+    Self-serve signup: creates the organisation and its first user (owner) in
+    one transaction. Works for both password and Google sign-up; Google users
+    have no password hash and arrive pre-verified.
+
+    The owner's work domain is claimed by the organisation so colleagues who
+    sign in later join this tenant instead of creating a duplicate.
     """
-    validate_signup(email, password, org_name)
+    validate_signup(email, password if provider == "password" else "oauth-no-password",
+                    org_name, require_work_email=work_email_required())
     email = email.strip().lower()
 
     db = configureMySQL()
@@ -80,15 +122,20 @@ def create_organisation(org_name, email, password, full_name=None):
         user_id = str(uuid.uuid4())
         slug = _unique_slug(cur, slugify(org_name))
 
+        domain = email_domain(email)
+        claim_domain = None if is_public_email_domain(email) else domain
         cur.execute(
-            "INSERT INTO ORGANISATIONS (ORG_ID, NAME, SLUG, PLAN) VALUES (%s,%s,%s,'free')",
-            (org_id, org_name.strip(), slug),
+            "INSERT INTO ORGANISATIONS (ORG_ID, NAME, SLUG, PLAN, EMAIL_DOMAIN) "
+            "VALUES (%s,%s,%s,'free',%s)",
+            (org_id, org_name.strip(), slug, claim_domain),
         )
         cur.execute(
-            "INSERT INTO USERS (USER_ID, ORG_ID, EMAIL, FULL_NAME, PASSWORD_HASH, ROLE) "
-            "VALUES (%s,%s,%s,%s,%s,'owner')",
+            "INSERT INTO USERS (USER_ID, ORG_ID, EMAIL, FULL_NAME, PASSWORD_HASH, ROLE, "
+            "AUTH_PROVIDER, GOOGLE_SUB, AVATAR_URL, EMAIL_VERIFIED) "
+            "VALUES (%s,%s,%s,%s,%s,'owner',%s,%s,%s,%s)",
             (user_id, org_id, email, (full_name or "").strip() or None,
-             generate_password_hash(password)),
+             generate_password_hash(password) if provider == "password" else None,
+             provider, google_sub, avatar_url, 1 if email_verified else 0),
         )
         db.commit()
         logging.info("Organisation '%s' created (%s) with owner %s", org_name, slug, email)
@@ -122,7 +169,12 @@ def authenticate(email, password):
             (email,),
         )
         row = cur.fetchone()
-        if not row or not check_password_hash(row[4], password or ""):
+        if not row:
+            return None
+        if not row[4]:
+            # Google-only account: there is no password to compare against.
+            raise TenancyError("This account uses Google sign-in. Use the Google button.")
+        if not check_password_hash(row[4], password or ""):
             return None
         if row[6] != "active" or row[10] != "active":
             raise TenancyError("This account is suspended. Contact your organisation owner.")
@@ -308,3 +360,114 @@ def org_usage(org_id):
     finally:
         cur.close()
         db.close()
+
+
+# --------------------------------------------------------------------------- #
+# Google sign-in
+# --------------------------------------------------------------------------- #
+
+def _row_to_session(row):
+    return {
+        "USER_ID": row[0], "ORG_ID": row[1], "EMAIL": row[2], "FULL_NAME": row[3],
+        "ROLE": row[4], "ORG_NAME": row[5], "ORG_SLUG": row[6], "PLAN": row[7],
+    }
+
+
+def _lookup_user(cur, google_sub=None, email=None):
+    cur.execute(
+        "SELECT u.USER_ID, u.ORG_ID, u.EMAIL, u.FULL_NAME, u.ROLE, o.NAME, o.SLUG, o.PLAN, "
+        "       u.STATUS, o.STATUS, u.GOOGLE_SUB "
+        "FROM USERS u JOIN ORGANISATIONS o ON o.ORG_ID = u.ORG_ID "
+        "WHERE {} = %s".format("u.GOOGLE_SUB" if google_sub else "u.EMAIL"),
+        (google_sub or email,),
+    )
+    return cur.fetchone()
+
+
+def find_org_for_domain(cur, domain):
+    """An organisation that has claimed this domain and allows domain joins."""
+    if not domain or domain in PUBLIC_EMAIL_DOMAINS:
+        return None
+    cur.execute(
+        "SELECT ORG_ID, NAME, SLUG, PLAN FROM ORGANISATIONS "
+        "WHERE EMAIL_DOMAIN=%s AND ALLOW_DOMAIN_JOIN=1 AND STATUS='active' LIMIT 1",
+        (domain,),
+    )
+    return cur.fetchone()
+
+
+def sign_in_with_google(identity, org_name=None):
+    """
+    Resolve a verified Google identity to a session, in priority order:
+
+      1. known Google account            -> sign in
+      2. existing email (password user)  -> link Google to it, then sign in
+      3. email domain claimed by an org  -> join that org as a member
+      4. otherwise                       -> create a new organisation (owner)
+
+    Returns (session_dict, outcome) where outcome is one of
+    signed_in | linked | joined | created.
+    """
+    email = identity["email"]
+    domain = email_domain(email)
+
+    db = configureMySQL()
+    cur = db.cursor()
+    try:
+        row = _lookup_user(cur, google_sub=identity["sub"])
+        if row:
+            if row[8] != "active" or row[9] != "active":
+                raise TenancyError("This account is suspended. Contact your organisation owner.")
+            cur.execute("UPDATE USERS SET LAST_LOGIN_ON=%s WHERE USER_ID=%s",
+                        (datetime.datetime.utcnow(), row[0]))
+            db.commit()
+            return _row_to_session(row), "signed_in"
+
+        row = _lookup_user(cur, email=email)
+        if row:
+            if row[8] != "active" or row[9] != "active":
+                raise TenancyError("This account is suspended. Contact your organisation owner.")
+            # Same person, previously registered with a password.
+            cur.execute(
+                "UPDATE USERS SET GOOGLE_SUB=%s, AVATAR_URL=%s, EMAIL_VERIFIED=1, "
+                "AUTH_PROVIDER=CASE WHEN PASSWORD_HASH IS NULL THEN 'google' ELSE AUTH_PROVIDER END, "
+                "LAST_LOGIN_ON=%s WHERE USER_ID=%s",
+                (identity["sub"], identity.get("picture"), datetime.datetime.utcnow(), row[0]),
+            )
+            db.commit()
+            return _row_to_session(row), "linked"
+
+        # Workspace accounts report their domain in `hd`; fall back to the suffix.
+        org = find_org_for_domain(cur, identity.get("hd") or domain)
+        if org:
+            user_id = str(uuid.uuid4())
+            cur.execute(
+                "INSERT INTO USERS (USER_ID, ORG_ID, EMAIL, FULL_NAME, ROLE, AUTH_PROVIDER, "
+                "GOOGLE_SUB, AVATAR_URL, EMAIL_VERIFIED, LAST_LOGIN_ON) "
+                "VALUES (%s,%s,%s,%s,'member','google',%s,%s,1,%s)",
+                (user_id, org[0], email, identity.get("name") or None,
+                 identity["sub"], identity.get("picture"), datetime.datetime.utcnow()),
+            )
+            db.commit()
+            return {
+                "USER_ID": user_id, "ORG_ID": org[0], "EMAIL": email,
+                "FULL_NAME": identity.get("name"), "ROLE": "member",
+                "ORG_NAME": org[1], "ORG_SLUG": org[2], "PLAN": org[3],
+            }, "joined"
+    finally:
+        cur.close()
+        db.close()
+
+    # Nothing matched: create a tenant. Name it after the org the user typed,
+    # else the Workspace domain, else the local part of the address.
+    fallback = (identity.get("hd") or domain).split(".")[0].title()
+    return create_organisation(
+        org_name=(org_name or "").strip() or fallback,
+        email=email,
+        password=None,
+        full_name=identity.get("name"),
+        provider="google",
+        google_sub=identity["sub"],
+        avatar_url=identity.get("picture"),
+        email_verified=True,
+    ), "created"

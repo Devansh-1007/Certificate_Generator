@@ -66,6 +66,23 @@ local files are just a render cache. Free instances sleep after idle (first requ
    { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
    ```
 
+## 4b. Google sign-in (optional)
+1. Google Cloud Console -> APIs & Services -> **Credentials** -> Create
+   credentials -> **OAuth client ID** -> Web application.
+2. Under *Authorised JavaScript origins* add your frontend origins:
+   `https://<project>.vercel.app` and `http://localhost:3000`.
+   (No redirect URI or client secret: Google Identity Services returns an ID
+   token to the page, and the backend verifies it against Google's JWKS.)
+3. Copy the client ID into Render as `GOOGLE_CLIENT_ID`, then redeploy.
+   The Google button appears automatically — the sign-in page asks
+   `/auth/config` whether it is configured.
+
+**Work-email policy.** `REQUIRE_WORK_EMAIL=true` (default) stops consumer
+addresses from creating organisations, which keeps one tenant per company.
+An organisation claims its owner's domain, so colleagues signing in later join
+it as members rather than creating duplicates. Set the flag to `false` for
+demos where gmail accounts should be able to create organisations.
+
 ## 5. Smoke test
 Admin login → register client → client login → generate certificate → open the QR's
 /verify link in an incognito window → bulk-upload backend/sample_roster.csv.

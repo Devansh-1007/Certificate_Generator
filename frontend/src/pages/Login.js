@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../api/client";
 import { errorMessage } from "../api/errors";
 import Alert from "../components/Alert";
+import GoogleButton from "../components/GoogleButton";
 import { useAuth } from "../context/AuthContext";
 
 const inputCls =
@@ -38,6 +39,12 @@ const Login = () => {
       <p className="mb-8 text-sm text-slate-400">Welcome back.</p>
 
       {error && <Alert kind="error" onClose={() => setError(null)}>{error}</Alert>}
+
+      <GoogleButton
+        text="signin_with"
+        onSuccess={(data) => { login(data); navigate("/dashboard"); }}
+        onError={(err) => setError(errorMessage(err, "Google sign-in failed."))}
+      />
 
       <form onSubmit={submit} className="space-y-4">
         <input required type="email" className={inputCls} placeholder="you@organisation.com"
