@@ -9,28 +9,18 @@ POST /bulk/jobs/<id>/approve {"ROWS": [...]} -> start background render (maker-c
 GET  /bulk/jobs/<id>/download -> the rendered certificates as a zip
 """
 
-<<<<<<< HEAD
 import re
 import json
 import logging
 
 from flask import Blueprint, request, jsonify, g, send_file, Response
-=======
-import json
-import logging
-
-from flask import Blueprint, request, jsonify, g, send_file
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 
 from middleware import require_client
 from dataHandling import configureMySQL
 from certificates import default_template
 from templateEngine import extract_placeholders
 from bulk import parse_table, map_rows, detect_anomalies, suggest_rows, ParseError
-<<<<<<< HEAD
 from bulk.parser import MAX_ROWS
-=======
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 from bulk.jobs import create_job, get_job, list_jobs, start_render
 
 logging.basicConfig(
@@ -95,7 +85,6 @@ def upload():
         return jsonify({"status": "Error", "description": "No data rows found in the file."}), 400
 
     placeholders = extract_placeholders(template)
-<<<<<<< HEAD
     if len(rows) > MAX_ROWS:
         return jsonify({
             "status": "Error",
@@ -105,9 +94,6 @@ def upload():
         }), 413
 
     mapped, unmapped, mapping_report = map_rows(rows, placeholders, mapping)
-=======
-    mapped, unmapped = map_rows(rows, placeholders, mapping)
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
     name_field = _name_field(placeholders)
     report = detect_anomalies(mapped, name_field)
     suggested = suggest_rows(mapped, report)
@@ -123,10 +109,7 @@ def upload():
         "NAME_FIELD": name_field,
         "COLUMNS": list(rows[0].keys()),
         "PLACEHOLDERS": placeholders,
-<<<<<<< HEAD
         "MAPPING_REPORT": mapping_report,
-=======
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
         "UNMAPPED_PLACEHOLDERS": unmapped,
         "ROWS": mapped,
         "SUGGESTED_ROWS": suggested,
@@ -134,7 +117,6 @@ def upload():
     })
 
 
-<<<<<<< HEAD
 @bulk_bp.route("/bulk/template", methods=["GET"])
 @require_client
 def roster_template():
@@ -178,8 +160,6 @@ def roster_template():
     )
 
 
-=======
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 @bulk_bp.route("/bulk/jobs", methods=["GET"])
 @require_client
 def jobs():

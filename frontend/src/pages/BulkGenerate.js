@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-<<<<<<< HEAD
 import api from "../api/client";
 import { errorMessage, showError } from "../api/errors";
 import Alert from "../components/Alert";
-=======
-import Swal from "sweetalert2";
-import api from "../api/client";
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 
 const inputCls =
   "w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:border-amber-500 focus:outline-none";
@@ -21,12 +16,6 @@ const BADGE = {
   duplicate_near: ["bg-fuchsia-500/20 text-fuchsia-300", "near-dup"],
 };
 
-<<<<<<< HEAD
-=======
-const swalErr = (text) =>
-  Swal.fire({ icon: "error", title: "Error", text, background: "#0f172a", color: "#e2e8f0" });
-
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 const BulkGenerate = () => {
   const [templates, setTemplates] = useState([]);
   const [templateName, setTemplateName] = useState("Classic Achievement");
@@ -37,10 +26,7 @@ const BulkGenerate = () => {
   const [review, setReview] = useState(null); // upload response
   const [rows, setRows] = useState([]); // editable rows
   const [job, setJob] = useState(null); // polled job detail
-<<<<<<< HEAD
   const [error, setError] = useState(null); // inline banner (keeps context visible)
-=======
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
   const pollRef = useRef(null);
 
   useEffect(() => {
@@ -49,7 +35,6 @@ const BulkGenerate = () => {
   }, []);
 
   // ---- upload ----
-<<<<<<< HEAD
   const downloadRosterTemplate = async () => {
     try {
       const res = await api.get("/bulk/template", {
@@ -74,11 +59,6 @@ const BulkGenerate = () => {
     const ok = /\.(csv|tsv|txt|xlsx|xlsm)$/i.test(file.name);
     if (!ok) return setError(`"${file.name}" isn't a supported format. Upload .csv, .tsv or .xlsx.`);
     if (file.size > 5 * 1024 * 1024) return setError("File is larger than 5 MB — split the roster.");
-=======
-  const upload = async (e) => {
-    e.preventDefault();
-    if (!file) return swalErr("Choose a CSV or Excel file first.");
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
     setBusy(true);
     try {
       const fd = new FormData();
@@ -91,11 +71,7 @@ const BulkGenerate = () => {
       setRows(data.SUGGESTED_ROWS.map((r) => ({ ...r }))); // start from cleaned rows
       setStep("review");
     } catch (err) {
-<<<<<<< HEAD
       setError(errorMessage(err, "Upload failed."));
-=======
-      swalErr(err.response?.data?.description || String(err));
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
     } finally {
       setBusy(false);
     }
@@ -124,11 +100,7 @@ const BulkGenerate = () => {
       setJob({ STATUS: "RENDERING", TOTAL: data.TOTAL, PROCESSED: 0, SUCCEEDED: 0, FAILED: 0 });
       pollRef.current = setInterval(poll, 1200);
     } catch (err) {
-<<<<<<< HEAD
       showError(err);
-=======
-      swalErr(err.response?.data?.description || String(err));
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
     } finally {
       setBusy(false);
     }
@@ -157,11 +129,7 @@ const BulkGenerate = () => {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-<<<<<<< HEAD
       showError(err, "Download failed");
-=======
-      swalErr(err.response?.data?.description || "Download failed");
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
     }
   };
 
@@ -201,15 +169,12 @@ const BulkGenerate = () => {
       </div>
 
       {/* STEP 1 — upload */}
-<<<<<<< HEAD
       {error && (
         <Alert kind="error" title="Couldn't process that file" onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
-=======
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
       {step === "upload" && (
         <form onSubmit={upload} className="grid max-w-xl gap-4">
           <div>
@@ -229,7 +194,6 @@ const BulkGenerate = () => {
               onChange={(e) => setFile(e.target.files[0])}
               className="block w-full text-sm text-slate-400 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-500 file:px-4 file:py-2 file:font-semibold file:text-slate-950 hover:file:bg-amber-400"
             />
-<<<<<<< HEAD
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
               Accepts .csv, .tsv and .xlsx (max 5 MB, 2000 rows). The delimiter is detected
               automatically (comma, semicolon, tab or pipe) and title rows above the header are skipped.
@@ -244,12 +208,6 @@ const BulkGenerate = () => {
             >
               ↓ Download a ready-to-fill CSV for this template
             </button>
-=======
-            <p className="mt-2 text-xs text-slate-500">
-              Column headers should match template fields (e.g. <code className="text-slate-400">RECIPIENT_NAME</code>,
-              {" "}<code className="text-slate-400">EVENT_NAME</code>). Header matching is case-insensitive.
-            </p>
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
           </div>
           <button disabled={busy} className="rounded-lg bg-amber-500 py-2.5 font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50">
             {busy ? "Analysing…" : "Upload & review"}
@@ -260,7 +218,6 @@ const BulkGenerate = () => {
       {/* STEP 2 — review */}
       {step === "review" && review && (
         <div>
-<<<<<<< HEAD
           {review.MAPPING_REPORT && review.MAPPING_REPORT.length > 0 && (
             <div className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
               <h3 className="mb-3 text-sm font-semibold text-slate-200">Detected columns</h3>
@@ -298,8 +255,6 @@ const BulkGenerate = () => {
             </div>
           )}
 
-=======
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
           <div className="mb-5 flex flex-wrap items-center gap-3">
             <span className="text-sm text-slate-300">
               {review.REPORT.total_rows} rows · {review.REPORT.anomaly_count} findings

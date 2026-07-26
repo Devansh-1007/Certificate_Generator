@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api/client";
-<<<<<<< HEAD
 import { showError } from "../api/errors";
-=======
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 
 const STATUS_CLS = {
   PENDING_REVIEW: "bg-amber-500/20 text-amber-300",
@@ -38,11 +35,7 @@ const BatchJobs = () => {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-<<<<<<< HEAD
       showError(err, "Download failed");
-=======
-      Swal.fire({ icon: "error", title: "Download failed", text: err.response?.data?.description || "Not ready", background: "#0f172a", color: "#e2e8f0" });
->>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
     }
   };
 
