@@ -39,8 +39,7 @@ const GenerateCertificate = () => {
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const issue = async (reissue = false) => {
     setBusy(true);
     setResult(null);
     try {
@@ -53,13 +52,36 @@ const GenerateCertificate = () => {
         CERTIFICATE_NAME,
         TEMPLATE_NAME,
         DATA,
+        ...(reissue ? { REISSUE: true } : {}),
       });
       setResult(data.CERTIFICATE_DETAILS);
     } catch (err) {
-      showError(err, "Generation failed");
+      // 409 = same recipient + event + date already issued. Offer a re-issue
+      // rather than silently returning the old certificate.
+      if (err.response?.status === 409) {
+        const { isConfirmed } = await Swal.fire({
+          icon: "question",
+          title: "Already issued",
+          text: err.response.data?.description,
+          showCancelButton: true,
+          confirmButtonText: "Issue another anyway",
+          cancelButtonText: "Cancel",
+          confirmButtonColor: "#f59e0b",
+          background: "#0f172a",
+          color: "#e2e8f0",
+        });
+        if (isConfirmed) return issue(true);
+      } else {
+        showError(err, "Generation failed");
+      }
     } finally {
       setBusy(false);
     }
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+    issue(false);
   };
 
   return (

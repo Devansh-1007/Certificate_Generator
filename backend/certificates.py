@@ -4,6 +4,7 @@ Certificate generation — renders through the schema-driven template engine
 """
 
 import os
+import re
 import json
 import base64
 import logging
@@ -22,6 +23,17 @@ logging.basicConfig(
 
 _PRESET = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        "templateEngine", "presets", "default_certificate.json")
+
+
+def _safe_key(value):
+    """
+    Flatten an arbitrary name into a safe object key: strip path separators and
+    other characters that are unsafe in S3 keys/filenames, collapse dot runs so
+    no traversal survives, and bound the length.
+    """
+    key = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value))
+    key = re.sub(r"\.{2,}", "_", key).strip("._-")
+    return key[:120] or "certificate"
 
 
 def default_template():
@@ -48,7 +60,7 @@ def build_data(template, RECIPIENT_NAME, CLIENT_ID, overrides=None):
     return data
 
 
-def render_certificate(CERTIFICATE_NAME, CLIENT_ID, template=None, overrides=None):
+def render_certificate(CERTIFICATE_NAME, CLIENT_ID, template=None, overrides=None, file_key=None):
     """
     Render one certificate to disk (PNG + PDF), upload to object storage if
     available, and return a plain dict. No Flask request/app context required,
@@ -61,8 +73,11 @@ def render_certificate(CERTIFICATE_NAME, CLIENT_ID, template=None, overrides=Non
     pdf_folder_path = os.path.join(allCertPdfPath, CLIENT_ID)
     os.makedirs(img_folder_path, exist_ok=True)
     os.makedirs(pdf_folder_path, exist_ok=True)
-    img_path = os.path.join(img_folder_path, CERTIFICATE_NAME + ".png")
-    pdf_path = os.path.join(pdf_folder_path, CERTIFICATE_NAME + ".pdf")
+    # Filenames use the issuance uid: recipient names collide, contain characters
+    # that are unsafe in object keys, and would overwrite earlier certificates.
+    key = _safe_key(file_key or CERTIFICATE_NAME)
+    img_path = os.path.join(img_folder_path, key + ".png")
+    pdf_path = os.path.join(pdf_folder_path, key + ".pdf")
 
     image.save(img_path)
     with open(pdf_path, "wb") as f:
@@ -99,10 +114,10 @@ def render_certificate(CERTIFICATE_NAME, CLIENT_ID, template=None, overrides=Non
     }
 
 
-def generateCert(CERTIFICATE_NAME, CLIENT_ID, template=None, overrides=None):
+def generateCert(CERTIFICATE_NAME, CLIENT_ID, template=None, overrides=None, file_key=None):
     """Flask-facing wrapper: renders one certificate and returns a JSON response."""
     try:
-        return jsonify(render_certificate(CERTIFICATE_NAME, CLIENT_ID, template, overrides))
+        return jsonify(render_certificate(CERTIFICATE_NAME, CLIENT_ID, template, overrides, file_key))
     except Exception as e:
         logging.error("Error generating certificate for Client ID '%s': %s", CLIENT_ID, str(e))
         return jsonify({"status": "Error", "description": "Certificate generation failed: " + str(e)})

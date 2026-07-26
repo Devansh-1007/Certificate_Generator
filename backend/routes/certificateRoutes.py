@@ -10,7 +10,6 @@ from middleware import require_client
 from models import Client, Certificate
 from certificates import generateCert
 from awsS3 import downloadFile
-from authentication import verify_Certificate
 import verification
 from dataHandling import (
     getCertificateInfo,
@@ -36,23 +35,27 @@ def generatecert():
         CERTIFICATE_NAME = data["CERTIFICATE_NAME"]
         CURRENT_CLIENT = g.client_id
 
-        if verify_Certificate(CERTIFICATE_NAME, CURRENT_CLIENT, "CERTIFICATE_DETAILS"):
-            details = {
-                "status": "Success",
-                "description": "Certificate already exists",
-                "CERTIFICATE_DETAILS": {
-                    "CERTIFICATE_NAME": CERTIFICATE_NAME,
-                    "CREATED_BY": CURRENT_CLIENT,
-                    "IMAGE_URL": getCertificateInfo(
-                        "CERTIFICATE_IMG_PATH", CERTIFICATE_NAME, "CERTIFICATE_DETAILS"
+        overrides = dict(data.get("DATA") or {})
+        event = overrides.get("EVENT_NAME")
+        issue_date = overrides.get("ISSUE_DATE")
+
+        # A repeat is the same recipient AND event AND date — the same person may
+        # hold many certificates. An exact repeat is treated as an accidental
+        # double-submit and reported, unless the caller explicitly re-issues.
+        if not data.get("REISSUE"):
+            existing = verification.find_duplicate(CURRENT_CLIENT, CERTIFICATE_NAME, event, issue_date)
+            if existing:
+                return jsonify({
+                    "status": "Duplicate",
+                    "description": (
+                        "'{}' already has a certificate for this event and date. "
+                        "Change a detail, or re-issue to create another copy.".format(CERTIFICATE_NAME)
                     ),
-                    "PDF_URL": getCertificateInfo(
-                        "CERTIFICATE_PDF_PATH", CERTIFICATE_NAME, "CERTIFICATE_DETAILS"
+                    "EXISTING_CERT_UID": existing,
+                    "VERIFY_URL": "{}/verify/{}".format(
+                        (base_url or "http://localhost:5000").rstrip("/"), existing
                     ),
-                },
-            }
-            logging.info("Certificate already exists for CLIENT_ID: %s", CURRENT_CLIENT)
-            return jsonify(details)
+                }), 409
 
         template = None
         template_name = data.get("TEMPLATE_NAME")
@@ -71,11 +74,7 @@ def generatecert():
             template = _json.loads(row[0])
 
         # Issue a verifiable, signed UID and point the QR at the public verify URL.
-        overrides = dict(data.get("DATA") or {})
-        cert_uid, _ = verification.create_record(
-            CURRENT_CLIENT, CERTIFICATE_NAME,
-            overrides.get("EVENT_NAME"), overrides.get("ISSUE_DATE"),
-        )
+        cert_uid, _ = verification.create_record(CURRENT_CLIENT, CERTIFICATE_NAME, event, issue_date)
         overrides["VERIFY_URL"] = "{}/verify/{}".format(
             (base_url or "http://localhost:5000").rstrip("/"), cert_uid
         )
@@ -83,7 +82,7 @@ def generatecert():
         client = Client(CURRENT_CLIENT, "NULL", "NULL", "NULL", "NULL")
         result = generateCert(
             CERTIFICATE_NAME, client.CLIENT_ID,
-            template=template, overrides=overrides,
+            template=template, overrides=overrides, file_key=cert_uid,
         ).json
         result["CERTIFICATE_DETAILS"]["CERT_UID"] = cert_uid
         result["CERTIFICATE_DETAILS"]["VERIFY_URL"] = overrides["VERIFY_URL"]
@@ -104,7 +103,7 @@ def generatecert():
 @swag_from(swagger_doc("get_certificate.yaml"))
 @require_client
 def getCert():
-    CERTIFICATE_NAME = request.args.get("CERTIFICATE_NAME")
+    CERTIFICATE_NAME = request.args.get("CERT_UID") or request.args.get("CERTIFICATE_NAME")
     EXTENSION = request.args.get("EXTENSION")
     CURRENT_CLIENT = g.client_id
     try:

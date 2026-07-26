@@ -82,6 +82,30 @@ def create_record(client_id, recipient, event, issue_date):
     return uid, signature
 
 
+def find_duplicate(client_id, recipient, event, issue_date):
+    """
+    An issuance is identified by (client, recipient, event, date) — not by name
+    alone, so the same person can hold many certificates for different events.
+    Returns the existing CERT_UID for an exact repeat, else None.
+    """
+    try:
+        db = configureMySQL()
+        cur = db.cursor()
+        cur.execute(
+            "SELECT CERT_UID FROM CERTIFICATE_VERIFY WHERE CLIENT_ID=%s AND RECIPIENT_NAME=%s "
+            "AND IFNULL(EVENT_NAME,'')=%s AND IFNULL(ISSUE_DATE,'')=%s AND STATUS='VALID' "
+            "ORDER BY CREATED_ON DESC LIMIT 1",
+            (client_id, recipient, event or "", issue_date or ""),
+        )
+        row = cur.fetchone()
+        cur.close()
+        db.close()
+        return row[0] if row else None
+    except Exception as e:  # noqa: BLE001 - never block issuance on the dedupe probe
+        logging.warning("Duplicate check skipped (%s)", e)
+        return None
+
+
 def get_record(uid):
     db = configureMySQL()
     cur = db.cursor(dictionary=True)
