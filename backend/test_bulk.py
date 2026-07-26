@@ -80,6 +80,7 @@ def test_parse_xlsx_roundtrip():
 
 # ---------- column mapping ----------
 
+<<<<<<< HEAD
 def test_map_rows_alias_and_case_insensitive():
     rows = [{"full name": "Alice", "event name": "Expo"}]
     mapped, unmapped, report = map_rows(rows, ["RECIPIENT_NAME", "EVENT_NAME", "ISSUE_DATE"])
@@ -89,11 +90,23 @@ def test_map_rows_alias_and_case_insensitive():
     assert unmapped == ["ISSUE_DATE"]
     methods = {r["HEADER"]: r["METHOD"] for r in report}
     assert methods["full name"] == "alias" and methods["event name"] == "exact"
+=======
+def test_map_rows_case_insensitive():
+    rows = [{"full name": "Alice", "event name": "Expo"}]
+    mapped, unmapped = map_rows(rows, ["RECIPIENT_NAME", "EVENT_NAME", "ISSUE_DATE"])
+    # "full name" doesn't normalize to RECIPIENT_NAME, but "event name" -> EVENT_NAME
+    assert mapped[0]["EVENT_NAME"] == "Expo"
+    assert "RECIPIENT_NAME" in unmapped
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 
 
 def test_map_rows_explicit_mapping():
     rows = [{"Student": "Alice", "Award": "Gold"}]
+<<<<<<< HEAD
     mapped, unmapped, _report = map_rows(
+=======
+    mapped, unmapped = map_rows(
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
         rows, ["RECIPIENT_NAME", "EVENT_NAME"],
         mapping={"Student": "RECIPIENT_NAME", "Award": "EVENT_NAME"},
     )
@@ -103,7 +116,11 @@ def test_map_rows_explicit_mapping():
 
 def test_map_rows_normalized_header_match():
     rows = [{"Recipient_Name": "Alice"}]
+<<<<<<< HEAD
     mapped, _unmapped, _report = map_rows(rows, ["RECIPIENT_NAME"])
+=======
+    mapped, _ = map_rows(rows, ["RECIPIENT_NAME"])
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
     assert mapped[0]["RECIPIENT_NAME"] == "Alice"
 
 
@@ -176,6 +193,7 @@ def test_suggest_rows_applies_safe_fixes_only():
     assert any(a["type"] == "duplicate_exact" for a in report["anomalies"])
     # original untouched (suggest_rows returns a copy)
     assert rows[0]["RECIPIENT_NAME"] == "ALICE  SMITH "
+<<<<<<< HEAD
 
 
 # ---------- robust parsing (real-world roster shapes) ----------
@@ -229,3 +247,5 @@ def test_one_placeholder_per_column():
     mapped, _unmapped, report = map_rows(rows, ["RECIPIENT_NAME"])
     assert mapped[0]["RECIPIENT_NAME"] == "Alice"
     assert any(r["METHOD"] == "duplicate_column" for r in report)
+=======
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70

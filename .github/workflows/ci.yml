@@ -1,10 +1,15 @@
+<<<<<<< HEAD
 name: CI/CD
+=======
+name: CI
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 
 on:
   push:
     branches: [main]
   pull_request:
 
+<<<<<<< HEAD
 concurrency:
   # A newer push supersedes an in-flight run instead of racing it to production.
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,6 +18,10 @@ concurrency:
 jobs:
   backend:
     name: Backend tests + agent evals
+=======
+jobs:
+  backend:
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,6 +34,7 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt pytest
+<<<<<<< HEAD
       - name: Unit tests (offline — no DB, storage or network needed)
         run: pytest -q
       - name: Agent eval gate (fake provider, full design pipeline)
@@ -39,6 +49,14 @@ jobs:
 
   frontend:
     name: Frontend build
+=======
+      - name: Unit tests (offline — no DB/network needed)
+        run: pytest -q
+      - name: Eval harness gate (fake provider, validates the full agent pipeline)
+        run: python -m evals.run_evals --fake --min-pass 1.0
+
+  frontend:
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -53,6 +71,7 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
+<<<<<<< HEAD
           CI: "false" # CRA treats warnings as errors under CI=true
 
   deploy:
@@ -95,3 +114,6 @@ jobs:
             echo "attempt $i: HTTP $CODE — retrying in 20s"; sleep 20
           done
           echo "API did not become healthy"; exit 1
+=======
+          CI: "false"  # CRA treats warnings as errors with CI=true
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70

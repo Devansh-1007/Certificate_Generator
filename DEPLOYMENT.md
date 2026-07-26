@@ -7,6 +7,7 @@ Stack: **Render** (backend, Docker) · **Aiven** free MySQL · **Cloudflare R2**
 ```bash
 git push origin main
 ```
+<<<<<<< HEAD
 
 ### CI/CD pipeline (.github/workflows/ci.yml)
 Every push to `main` runs, in order:
@@ -36,6 +37,9 @@ test-gated:
 
 If those secrets are absent the workflow simply logs that it's relying on the
 platforms' own auto-deploy — nothing breaks.
+=======
+CI (.github/workflows/ci.yml) runs 45 tests + the eval gate on every push.
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 
 ## 2. Database — Aiven free MySQL
 1. aiven.io → create free MySQL service → copy host/port/user/password.

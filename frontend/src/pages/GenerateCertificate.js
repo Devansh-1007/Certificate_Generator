@@ -4,6 +4,17 @@ import Swal from "sweetalert2";
 import api from "../api/client";
 import { showError } from "../api/errors";
 
+/**
+ * The date input gives ISO (yyyy-mm-dd); certificates read better as
+ * "15 July 2026", so convert on submit and leave the field free-text-safe.
+ */
+const formatIssueDate = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return iso; // typed value we can't parse — pass through
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+};
+
 const inputCls =
   "w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:border-amber-500 focus:outline-none";
 
@@ -34,7 +45,10 @@ const GenerateCertificate = () => {
     setResult(null);
     try {
       const { CERTIFICATE_NAME, TEMPLATE_NAME, ...rest } = form;
-      const DATA = Object.fromEntries(Object.entries(rest).filter(([, v]) => v));
+      const DATA = Object.fromEntries(
+        Object.entries({ ...rest, ISSUE_DATE: formatIssueDate(rest.ISSUE_DATE) })
+          .filter(([, v]) => v)
+      );
       const { data } = await api.post("/generateCertificate", {
         CERTIFICATE_NAME,
         TEMPLATE_NAME,
@@ -66,9 +80,38 @@ const GenerateCertificate = () => {
             ))}
           </select>
         </div>
-        <input required className={`${inputCls} sm:col-span-2`} placeholder="Recipient name *" value={form.CERTIFICATE_NAME} onChange={set("CERTIFICATE_NAME")} />
-        <input className={inputCls} placeholder="Event / reason (optional)" value={form.EVENT_NAME} onChange={set("EVENT_NAME")} />
-        <input className={inputCls} placeholder="Issue date (optional, e.g. 15 July 2026)" value={form.ISSUE_DATE} onChange={set("ISSUE_DATE")} />
+        <div className="sm:col-span-2">
+          <label htmlFor="recipient" className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
+            Recipient name *
+          </label>
+          <input id="recipient" required className={inputCls} placeholder="e.g. Happu Singh"
+                 value={form.CERTIFICATE_NAME} onChange={set("CERTIFICATE_NAME")} />
+        </div>
+        <div>
+          <label htmlFor="event" className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
+            Event / reason <span className="normal-case tracking-normal text-slate-600">(optional)</span>
+          </label>
+          <input id="event" className={inputCls} placeholder="e.g. Annual Symposium 2026"
+                 value={form.EVENT_NAME} onChange={set("EVENT_NAME")} />
+        </div>
+        <div>
+          <label htmlFor="issue-date" className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
+            Issue date <span className="normal-case tracking-normal text-slate-600">(optional — defaults to today)</span>
+          </label>
+          <input
+            id="issue-date"
+            type="date"
+            value={form.ISSUE_DATE}
+            onChange={set("ISSUE_DATE")}
+            max="2100-12-31"
+            className={`${inputCls} [color-scheme:dark]`}
+          />
+          {form.ISSUE_DATE && (
+            <p className="mt-1 text-xs text-slate-500">
+              Prints as <span className="text-slate-300">{formatIssueDate(form.ISSUE_DATE)}</span>
+            </p>
+          )}
+        </div>
         <input className={inputCls} placeholder="Signatory name (optional)" value={form.SIGNATORY_NAME} onChange={set("SIGNATORY_NAME")} />
         <input className={inputCls} placeholder="Signatory title (optional)" value={form.SIGNATORY_TITLE} onChange={set("SIGNATORY_TITLE")} />
         <button

@@ -21,6 +21,7 @@ from rapidfuzz import fuzz
 # A near-duplicate is flagged when two distinct names score at/above this.
 NEAR_DUP_THRESHOLD = 88
 
+<<<<<<< HEAD
 # Upload guards
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_ROWS = 2000
@@ -46,6 +47,8 @@ HEADER_ALIASES = {
     "ORG_NAME": ["organisation", "organization", "org", "company", "institute", "institution", "college"],
 }
 
+=======
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 
 class ParseError(Exception):
     """Raised when an uploaded file cannot be read as a table."""
@@ -62,6 +65,7 @@ def parse_table(filename, file_bytes):
     Supports .csv/.tsv (stdlib) and .xlsx (openpyxl, first sheet, row 1 = header).
     Blank rows are skipped. Raises ParseError on an unreadable or headerless file.
     """
+<<<<<<< HEAD
     if not file_bytes:
         raise ParseError("The uploaded file is empty.")
     if len(file_bytes) > MAX_UPLOAD_BYTES:
@@ -78,11 +82,21 @@ def parse_table(filename, file_bytes):
         # Delimiter is sniffed, not assumed: Excel exports in many locales use
         # ';', and '.csv' files are frequently tab- or pipe-separated.
         return _parse_delimited(file_bytes)
+=======
+    name = (filename or "").lower()
+    if name.endswith((".xlsx", ".xlsm")):
+        return _parse_xlsx(file_bytes)
+    if name.endswith(".tsv"):
+        return _parse_delimited(file_bytes, delimiter="\t")
+    if name.endswith(".csv") or not name:
+        return _parse_delimited(file_bytes, delimiter=",")
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
     raise ParseError(
         "Unsupported file type '{}'. Upload a .csv, .tsv or .xlsx file.".format(name)
     )
 
 
+<<<<<<< HEAD
 def _sniff_delimiter(text):
     sample = "\n".join(text.splitlines()[:20])
     try:
@@ -128,6 +142,8 @@ def _dedupe_headers(headers):
     return out
 
 
+=======
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 def _decode(file_bytes):
     for encoding in ("utf-8-sig", "utf-8", "latin-1"):
         try:
@@ -137,6 +153,7 @@ def _decode(file_bytes):
     raise ParseError("Could not decode the file — save it as UTF-8 and retry.")
 
 
+<<<<<<< HEAD
 def _parse_delimited(file_bytes, delimiter=None):
     text = _decode(file_bytes)
     delimiter = delimiter or _sniff_delimiter(text)
@@ -154,6 +171,21 @@ def _parse_delimited(file_bytes, delimiter=None):
 
     rows = []
     for raw in rows_raw[header_idx + 1:]:
+=======
+def _parse_delimited(file_bytes, delimiter):
+    text = _decode(file_bytes)
+    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
+    rows_raw = [r for r in reader]
+    if not rows_raw:
+        raise ParseError("The file is empty.")
+
+    headers = [h.strip() for h in rows_raw[0]]
+    if not any(headers):
+        raise ParseError("The first row must contain column headers.")
+
+    rows = []
+    for raw in rows_raw[1:]:
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
         if not any((c or "").strip() for c in raw):
             continue  # skip fully blank rows
         row = {}
@@ -178,6 +210,7 @@ def _parse_xlsx(file_bytes):
         raise ParseError("Could not read the Excel file: {}".format(e))
 
     ws = wb.active
+<<<<<<< HEAD
     all_rows = [
         ["" if c is None else str(c).strip() for c in raw]
         for raw in ws.iter_rows(values_only=True)
@@ -193,6 +226,21 @@ def _parse_xlsx(file_bytes):
     rows = []
     for raw in all_rows[header_idx + 1:]:
         cells = raw
+=======
+    rows_iter = ws.iter_rows(values_only=True)
+    try:
+        header_row = next(rows_iter)
+    except StopIteration:
+        raise ParseError("The spreadsheet is empty.")
+
+    headers = [("" if h is None else str(h)).strip() for h in header_row]
+    if not any(headers):
+        raise ParseError("The first row must contain column headers.")
+
+    rows = []
+    for raw in rows_iter:
+        cells = ["" if c is None else str(c).strip() for c in raw]
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
         if not any(cells):
             continue
         row = {}
@@ -211,6 +259,7 @@ def _norm_key(s):
     return re.sub(r"[^a-z0-9]", "", (s or "").lower())
 
 
+<<<<<<< HEAD
 _ALIAS_LOOKUP = {
     _norm_key(alias): placeholder
     for placeholder, aliases in HEADER_ALIASES.items()
@@ -253,10 +302,13 @@ def match_header(header, placeholders):
     return None, int(best_score), "none"
 
 
+=======
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 def map_rows(rows, placeholders, mapping=None):
     """
     Re-key each row from roster headers to template placeholder names.
 
+<<<<<<< HEAD
     `mapping` (optional) is an explicit {header: PLACEHOLDER} dict from the user
     and always wins. Remaining headers are resolved by exact match, then a
     synonym table, then fuzzy matching above a confidence floor.
@@ -302,6 +354,32 @@ def map_rows(rows, placeholders, mapping=None):
 
     unmapped = [p for p in placeholders if p not in taken]
     return mapped, unmapped, report
+=======
+    `mapping` (optional) is an explicit {header: PLACEHOLDER} dict. Any header
+    not in the mapping is auto-matched to a placeholder by normalized name
+    (case/space/underscore-insensitive). Returns (mapped_rows, unmapped_placeholders).
+    """
+    mapping = mapping or {}
+    placeholders = list(placeholders)
+    norm_to_ph = {_norm_key(p): p for p in placeholders}
+    explicit = {h: p for h, p in mapping.items()}
+
+    mapped = []
+    used = set()
+    for row in rows:
+        out = {}
+        for header, value in row.items():
+            target = explicit.get(header)
+            if not target:
+                target = norm_to_ph.get(_norm_key(header))
+            if target:
+                out[target] = value
+                used.add(target)
+        mapped.append(out)
+
+    unmapped = [p for p in placeholders if p not in used]
+    return mapped, unmapped
+>>>>>>> 01e752bf247ce33f9427956dd13bdcf51af61e70
 
 
 # --------------------------------------------------------------------------- #
