@@ -13,6 +13,8 @@ Only one method matters: chat(messages, tool) -> {"tool_input": dict|None, "text
 
 import os
 import json
+import time
+import random
 import logging
 
 import requests
@@ -26,6 +28,37 @@ DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
     "ollama": "llama3.1",
 }
+
+
+class RateLimited(Exception):
+    """Provider returned 429 after exhausting retries — surfaced to the caller."""
+
+
+def _post_with_retry(url, headers, payload, timeout, attempts=4):
+    """
+    POST with exponential backoff on 429/5xx. Free LLM tiers cap tokens-per-minute,
+    and the schema-heavy tool definition makes bursts easy to hit; honouring
+    Retry-After and backing off keeps the agent usable instead of failing hard.
+    """
+    delay = 2.0
+    for attempt in range(1, attempts + 1):
+        resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
+        if resp.status_code == 429 or resp.status_code >= 500:
+            if attempt == attempts:
+                if resp.status_code == 429:
+                    raise RateLimited(
+                        "LLM provider rate limit reached. Wait about a minute and try again."
+                    )
+                resp.raise_for_status()
+            wait = float(resp.headers.get("Retry-After") or 0) or delay
+            wait += random.uniform(0, 0.5)  # jitter so parallel callers don't sync up
+            logging.warning("LLM %s — retry %d/%d in %.1fs", resp.status_code, attempt, attempts, wait)
+            time.sleep(min(wait, 30))
+            delay *= 2
+            continue
+        resp.raise_for_status()
+        return resp
+    raise RateLimited("LLM provider rate limit reached.")
 
 
 class LLMClient:
@@ -51,14 +84,14 @@ class LLMClient:
     def _anthropic(self, messages, tool):
         system = "\n".join(m["content"] for m in messages if m["role"] == "system")
         convo = [m for m in messages if m["role"] != "system"]
-        resp = requests.post(
+        resp = _post_with_retry(
             "https://api.anthropic.com/v1/messages",
-            headers={
+            {
                 "x-api-key": os.environ["ANTHROPIC_API_KEY"],
                 "anthropic-version": "2023-06-01",
                 "content-type": "application/json",
             },
-            json={
+            {
                 "model": self.model,
                 "max_tokens": 4096,
                 "system": system,
@@ -66,9 +99,8 @@ class LLMClient:
                 "tools": [tool],
                 "tool_choice": {"type": "tool", "name": tool["name"]},
             },
-            timeout=self.timeout,
+            self.timeout,
         )
-        resp.raise_for_status()
         body = resp.json()
         tool_input, text = None, ""
         for block in body.get("content", []):
@@ -83,10 +115,10 @@ class LLMClient:
         # Groq (https://api.groq.com/openai/v1), Google Gemini
         # (https://generativelanguage.googleapis.com/v1beta/openai), OpenRouter, etc.
         base = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-        resp = requests.post(
+        resp = _post_with_retry(
             base + "/chat/completions",
-            headers={"Authorization": "Bearer " + os.environ["OPENAI_API_KEY"]},
-            json={
+            {"Authorization": "Bearer " + os.environ["OPENAI_API_KEY"]},
+            {
                 "model": self.model,
                 "messages": messages,
                 "tools": [{
@@ -99,9 +131,8 @@ class LLMClient:
                 }],
                 "tool_choice": {"type": "function", "function": {"name": tool["name"]}},
             },
-            timeout=self.timeout,
+            self.timeout,
         )
-        resp.raise_for_status()
         msg = resp.json()["choices"][0]["message"]
         tool_input = None
         if msg.get("tool_calls"):
@@ -110,9 +141,10 @@ class LLMClient:
 
     def _ollama(self, messages, tool):
         url = os.getenv("OLLAMA_URL", "http://localhost:11434")
-        resp = requests.post(
+        resp = _post_with_retry(
             url + "/api/chat",
-            json={
+            {},
+            {
                 "model": self.model,
                 "messages": messages,
                 "stream": False,
@@ -125,9 +157,8 @@ class LLMClient:
                     },
                 }],
             },
-            timeout=self.timeout,
+            self.timeout,
         )
-        resp.raise_for_status()
         msg = resp.json()["message"]
         tool_input = None
         calls = msg.get("tool_calls") or []

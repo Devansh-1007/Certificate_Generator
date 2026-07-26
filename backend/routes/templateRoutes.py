@@ -18,6 +18,7 @@ from middleware import require_client
 from dataHandling import configureMySQL
 from templateEngine import validate_template, render_template, extract_placeholders
 from aiDesigner import design_template
+from aiDesigner.llm import RateLimited
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -34,7 +35,18 @@ def design():
     if not prompt:
         return jsonify({"description": "PROMPT is required"}), 400
 
-    result = design_template(prompt)
+    try:
+        result = design_template(prompt)
+    except RateLimited as e:
+        logging.warning("Design request rate limited: %s", e)
+        return jsonify({"status": "Error", "description": str(e)}), 429
+    except Exception as e:  # noqa: BLE001 - provider/network failures shouldn't 500
+        logging.error("Design request failed: %s", e)
+        return jsonify({
+            "status": "Error",
+            "description": "AI provider unavailable — check the API key/model, then retry.",
+        }), 502
+
     if not result["ok"]:
         return jsonify({
             "status": "Error",
