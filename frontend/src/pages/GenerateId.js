@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Swal from "sweetalert2";
 import api from "../api/client";
 import { showError } from "../api/errors";
 

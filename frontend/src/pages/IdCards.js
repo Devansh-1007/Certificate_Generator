@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api/client";
-import { showError } from "../api/errors";
 
 const swalCfg = { background: "#0f172a", color: "#e2e8f0" };
 
