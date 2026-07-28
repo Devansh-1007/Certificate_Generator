@@ -44,13 +44,18 @@ export const AuthProvider = ({ children }) => {
     setState(read());
   };
 
+  // Sessions created before the multi-tenant release have a token but no user
+  // or organisation payload. They can never satisfy the API, so require a
+  // fresh sign-in rather than letting the UI half-work.
+  const stale = !!state.token && (!state.user || !state.org);
   const role = state.user?.ROLE || "member";
   return (
     <AuthContext.Provider
       value={{
         ...state,
         role,
-        isAuthed: !!state.token,
+        isAuthed: !!state.token && !stale,
+        stale,
         canAdminister: role === "owner" || role === "admin",
         isOwner: role === "owner",
         login,

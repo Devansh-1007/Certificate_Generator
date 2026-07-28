@@ -14,6 +14,12 @@ const Login = () => {
   const [form, setForm] = useState({ EMAIL: "", PASSWORD: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // Set by the API client when a request was rejected and the session cleared.
+  const [notice, setNotice] = useState(() => {
+    const r = sessionStorage.getItem("cg_signout_reason");
+    if (r) sessionStorage.removeItem("cg_signout_reason");
+    return r;
+  });
   const { login } = useAuth();
   const navigate = useNavigate();
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -38,6 +44,7 @@ const Login = () => {
       <h1 className="mb-2 font-display text-3xl text-slate-50">Sign in</h1>
       <p className="mb-8 text-sm text-slate-400">Welcome back.</p>
 
+      {notice && <Alert kind="warning" onClose={() => setNotice(null)}>{notice}</Alert>}
       {error && <Alert kind="error" onClose={() => setError(null)}>{error}</Alert>}
 
       <GoogleButton
