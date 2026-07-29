@@ -63,9 +63,11 @@ def _session_payload(user):
 @auth_bp.route("/auth/config", methods=["GET"])
 def config():
     """Public: lets the sign-in page render the right options for this deployment."""
+    problem = oauth_google.config_problem()
     return jsonify({
-        "GOOGLE_ENABLED": oauth_google.is_configured(),
-        "GOOGLE_CLIENT_ID": oauth_google.client_id(),
+        "GOOGLE_ENABLED": problem is None,
+        "GOOGLE_CLIENT_ID": oauth_google.client_id() if problem is None else "",
+        "GOOGLE_PROBLEM": problem,
         "REQUIRE_WORK_EMAIL": tenancy.work_email_required(),
     })
 

@@ -5,19 +5,18 @@ domain objects in models.py, SQL migrations in db/migrations/.
 
 import logging
 
-from flask import Flask
 from flasgger import Swagger
+from flask import Flask
 from flask_cors import CORS
-
-from routes.clientRoutes import client_bp
-from routes.certificateRoutes import certificate_bp
-from routes.idRoutes import id_bp
-from routes.templateRoutes import templates_bp
-from routes.bulkRoutes import bulk_bp
-from routes.verifyRoutes import verify_bp
 from routes.accountRoutes import account_bp
 from routes.adminRoutes import admin_bp
 from routes.authRoutes import auth_bp
+from routes.bulkRoutes import bulk_bp
+from routes.certificateRoutes import certificate_bp
+from routes.clientRoutes import client_bp
+from routes.idRoutes import id_bp
+from routes.templateRoutes import templates_bp
+from routes.verifyRoutes import verify_bp
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -48,6 +47,7 @@ CORS(app)
 
 # Request timing/error telemetry for the admin console (in-process, bounded).
 import metrics
+
 metrics.install(app)
 
 app.register_blueprint(client_bp)

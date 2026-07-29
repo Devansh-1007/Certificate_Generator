@@ -31,12 +31,34 @@ class GoogleAuthError(Exception):
     """The ID token could not be trusted; the message is safe to show a user."""
 
 
-def is_configured():
-    return bool(os.getenv("GOOGLE_CLIENT_ID"))
+CLIENT_ID_SUFFIX = ".apps.googleusercontent.com"
 
 
 def client_id():
-    return os.getenv("GOOGLE_CLIENT_ID", "")
+    return os.getenv("GOOGLE_CLIENT_ID", "").strip()
+
+
+def config_problem():
+    """
+    Why Google sign-in is unavailable, or None if it's usable.
+
+    A truncated or malformed client id is worse than no client id: the button
+    renders and then fails inside Google's SDK, so we check the shape here and
+    report it rather than advertising a broken option.
+    """
+    cid = client_id()
+    if not cid:
+        return "GOOGLE_CLIENT_ID is not set on the server."
+    if not cid.endswith(CLIENT_ID_SUFFIX):
+        return (
+            "GOOGLE_CLIENT_ID looks truncated or malformed — it must end with "
+            "'{}'. Re-copy the full client ID from Google Cloud Console.".format(CLIENT_ID_SUFFIX)
+        )
+    return None
+
+
+def is_configured():
+    return config_problem() is None
 
 
 def _jwks():
