@@ -48,7 +48,9 @@ platforms' own auto-deploy — nothing breaks.
 2. Root directory: `backend`, runtime: **Docker** (uses backend/Dockerfile).
 3. Environment variables (same names as Env/.env.example):
    `MYSQL_HOST/PORT/USER/PASS/DB` (Aiven values), `JWT_SECRET`, `VERIFY_SECRET`,
-   `ADMIN_USER`, `ADMIN_PASSWORD`, `BASE_URL=https://<your-service>.onrender.com`,
+   `ADMIN_USER`, `ADMIN_PASSWORD`, `BASE_URL=https://certifyai-app.vercel.app`
+   (**the frontend URL, not the API's** — BASE_URL is what every certificate QR encodes,
+   and `/verify/<uid>` is a page in the React app),
    `BUCKET`, `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION=auto`,
    `LLM_PROVIDER=openai`, `OPENAI_BASE_URL=https://api.groq.com/openai/v1`,
    `OPENAI_API_KEY`, `LLM_MODEL=llama-3.3-70b-versatile`,
@@ -70,7 +72,7 @@ local files are just a render cache. Free instances sleep after idle (first requ
 1. Google Cloud Console -> APIs & Services -> **Credentials** -> Create
    credentials -> **OAuth client ID** -> Web application.
 2. Under *Authorised JavaScript origins* add your frontend origins:
-   `https://<project>.vercel.app` and `http://localhost:3000`.
+   `https://certifyai-app.vercel.app` and `http://localhost:3000`.
    (No redirect URI or client secret: Google Identity Services returns an ID
    token to the page, and the backend verifies it against Google's JWKS.)
 3. Copy the client ID into Render as `GOOGLE_CLIENT_ID`, then redeploy.

@@ -19,7 +19,7 @@ other over the network:
               v
    ┌──────────────────────┐
    │  FRONTEND  (Vercel)  │   React files: HTML/CSS/JS. Just static files a
-   │  certifyai.vercel.app│   browser downloads. Holds NO secrets, NO database.
+   │ certifyai-app.vercel.app│   browser downloads. Holds NO secrets, NO database.
    └──────────┬───────────┘
               │ HTTPS calls (fetch/axios)
               v
@@ -243,7 +243,8 @@ and keep TCP connections to MySQL. Vercel-style static hosting can't do that.
 3. **Environment** tab → add every variable from `backend/Env/.env.example`:
    MySQL (Aiven values), `JWT_SECRET`, `VERIFY_SECRET`, `ADMIN_USER/PASSWORD`,
    the R2 keys, the Groq key, the asset paths, and
-   `BASE_URL=https://<your-service>.onrender.com`.
+   `BASE_URL=https://certifyai-app.vercel.app` — the **frontend** URL, because this is
+   what certificate QR codes point at (`/verify/<uid>` is a page in the React app).
 4. Deploy. Check `https://<service>.onrender.com/apidocs`.
 
 **Free tier gotcha:** the service **sleeps after ~15 minutes idle**, so the first
@@ -333,7 +334,7 @@ authorise anything.
    - Application type: **Web application**.
    - **Authorised JavaScript origins** — add both:
      - `http://localhost:3000`
-     - `https://<your-project>.vercel.app`
+     - `https://certifyai-app.vercel.app`
    - Leave **Authorised redirect URIs empty** — our flow doesn't redirect.
    - Create → copy the **Client ID** (ends in `.apps.googleusercontent.com`).
 4. **Render** → Environment → add `GOOGLE_CLIENT_ID=<that value>` → save

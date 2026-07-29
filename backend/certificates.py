@@ -50,8 +50,11 @@ def build_data(template, RECIPIENT_NAME, CLIENT_ID, overrides=None):
         "ISSUE_DATE": datetime.date.today().strftime("%d %B %Y"),
         "SIGNATORY_NAME": CLIENT_ID,
         "SIGNATORY_TITLE": "Authorized Signatory",
-        "VERIFY_URL": "{}/verify/{}/{}".format(base_url or "http://localhost:5000",
-                                               CLIENT_ID, RECIPIENT_NAME.replace(" ", "-")),
+        # Callers that issue a signed uid override this; the fallback keeps the
+        # shape the frontend route (/verify/:id) actually matches.
+        "VERIFY_URL": "{}/verify/unverified".format(
+            (base_url or "http://localhost:3000").rstrip("/")
+        ),
     }
     data = {}
     for name in extract_placeholders(template):

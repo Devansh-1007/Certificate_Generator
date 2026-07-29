@@ -3,6 +3,9 @@
 Full-stack platform that generates branded certificates and ID cards at scale — with an
 **AI agent that designs certificate templates from plain-English descriptions**.
 
+**Live demo → [certifyai-app.vercel.app](https://certifyai-app.vercel.app)**
+(free-tier backend on Render sleeps when idle, so the first request can take ~30s)
+
 ## Highlights
 
 - **AI Template Designer** — a hand-rolled tool-calling agent (Anthropic / OpenAI / Ollama)
